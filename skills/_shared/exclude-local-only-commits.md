@@ -4,8 +4,8 @@ PR 생성 전 [LOCAL-ONLY] 커밋을 히스토리에서 제외한다.
 
 ## 입력
 
-- `base_branch`: PR 대상 브랜치. `rules/workflow.md`의 `base_branch` 설정을 사용한다. 없으면 자동 탐지 (`gh repo view --json defaultBranchRef`), 그래도 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`.
-- `upstream_remote`: upstream remote 이름. `rules/workflow.md`의 `fork_workflow`가 `true`면 `upstream`, 아니면 `origin`. 설정이 없으면 `git remote -v`로 탐지.
+- `base_branch`: PR 대상 브랜치. `rules/project-params.md`의 `base_branch` 설정을 사용한다. 없으면 자동 탐지 (`gh repo view --json defaultBranchRef`), 그래도 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`.
+- `upstream_remote`: upstream remote 이름. `rules/project-params.md`의 `fork_workflow`가 `true`면 `upstream`, 아니면 `origin`. 설정이 없으면 `git remote -v`로 탐지.
 
 ## 절차
 
@@ -31,7 +31,7 @@ for commit in $GOOD_COMMITS; do
 done
 ```
 
-Cherry-pick 실패 시 대안:
+cherry-pick 실패 시 대안:
 
 ```bash
 MERGE_BASE=$(git merge-base $CURRENT_HEAD $BASE_REF)

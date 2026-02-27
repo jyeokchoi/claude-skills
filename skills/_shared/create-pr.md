@@ -6,7 +6,7 @@
 - `jira_key` (선택): Jira 이슈 키 (e.g., PROJ-12345)
 - `changes_summary`: 수정 범위 요약
 - `impact_summary`: 기존 기능 영향 범위
-- `base_branch`: PR 대상 브랜치. `rules/workflow.md`의 `base_branch` 설정을 사용한다. 없으면 자동 탐지 (`gh repo view --json defaultBranchRef`), 그래도 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`.
+- `base_branch`: PR 대상 브랜치. `rules/project-params.md`의 `base_branch` 설정을 사용한다. 없으면 자동 탐지 (`gh repo view --json defaultBranchRef`), 그래도 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`.
 - `changed_files`: 변경된 파일 목록
 
 ## 절차
@@ -40,8 +40,8 @@ git log origin/{base_branch} --pretty=format:"%an" -30 -- {changed_files} | sort
 ```
 
 - 빈 결과 시 사용자에게 직접 선택 요청
-- Current user 제외, git author -> GitHub username 매칭
-- GitHub Copilot 리뷰어는 gh CLI로 추가 불가 -> 수동 추가 안내
+- 현재 사용자 제외, git author -> GitHub username 매칭
+- GitHub Copilot 리뷰어는 gh CLI로 추가 불가 → 수동 추가 안내
 
 ### 4. Label 자동감지 (선택적)
 

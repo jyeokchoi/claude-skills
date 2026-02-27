@@ -2,22 +2,23 @@
 name: worklog-compact
 description: Worklog의 Timeline을 코드 최종 상태 기반 요약 문서로 대체한다
 argument-hint: 'Usage: /worklog-compact [worklog-path] [--dry-run]'
+allowed-tools: Bash(git diff:*), Bash(git merge-base:*), Bash(git rev-parse:*), Bash(git log:*), Bash(git remote:*), Bash(git fetch:*), Bash(gh:*), Bash(date:*), Bash(find:*), Bash(ls:*), Read, Write, Edit, AskUserQuestion
 ---
 
-# Worklog Compact
+# 워크로그 압축
 
 기존 Timeline(세션별 작업 기록)을 삭제하고, 현재 코드 상태를 base branch와 비교하여 **최종 결과 문서**로 대체한다.
 
-## Project settings
+## 프로젝트 설정
 
-이 스킬은 다음 프로젝트 설정을 참조한다 (`rules/workflow.md` 또는 `rules/project-params.md`):
+이 스킬은 다음 프로젝트 설정을 참조한다 (`rules/project-params.md`):
 
 | 설정 | 용도 |
 |------|------|
 | `base_branch` | diff 기준 브랜치 (e.g., `upstream/develop`) |
 | `fork_workflow` | remote 결정 (`true` → upstream, `false` → origin) |
 
-설정이 없으면: `gh repo view --json defaultBranchRef`로 자동 탐지 → 실패 시 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`
+설정이 없으면: `_shared/resolve-base-branch.md`가 있으면 그 절차를 따른다.
 
 ## 목적
 
@@ -28,29 +29,29 @@ argument-hint: 'Usage: /worklog-compact [worklog-path] [--dry-run]'
 
 - **코드가 진실의 원천**: Timeline의 과거 기록이 아닌 git diff(base branch 대비)가 정보의 원천
 - **중간 과정 불필요**: 작업 도중의 시행착오, 롤백, 디버깅 기록은 모두 삭제
-- **Dashboard 보존**: Goal, Completion criteria, Next actions, Decisions, Remember, Links 등 Dashboard는 그대로 유지
+- **Dashboard 및 상위 섹션 보존**: Goal, Completion criteria (Dashboard 밖), Dashboard (Next actions, Decisions, Blockers/Risks), Remember, Links — 모두 그대로 유지
 
 ## 실행 단계
 
 ### Step 1: 워크로그 탐색
 
-- $ARGUMENTS가 경로이면 해당 경로 사용
-- 없으면 활성 워크로그 자동 탐색:
-  ```bash
-  find .claude/worklogs -name "worklog.md" -type f 2>/dev/null | head -5
-  ```
+- `_shared/resolve-worklog-target.md`가 존재하는 경우:
+  > **Shared**: `_shared/resolve-worklog-target.md` 절차를 따른다. (`required_files`: 없음)
+- 없는 경우 폴백:
+  - $ARGUMENTS가 경로이면 해당 경로 사용
+  - 없으면 활성 워크로그 자동 탐색:
+    ```bash
+    find .claude/worklogs -name "worklog.md" -type f 2>/dev/null | head -5
+    ```
 
 ### Step 2: 현재 상태 수집
 
 **a. Base branch 결정:**
-- `rules/workflow.md`에서 `base_branch` 설정을 읽는다 (e.g., `BASE_REF="upstream/develop"`)
-- `fork_workflow` 설정도 확인: `true`면 remote=`upstream`, `false`면 remote=`origin`
-- 설정이 없으면 자동 탐지:
-```bash
-# 1. gh repo view --json defaultBranchRef로 기본 브랜치 탐지
-# 2. fork 여부: git remote -v 로 upstream 존재 확인
-# 3. 탐지 실패 시 사용자에게 질문 → project_memory_add_note("base_branch: {answer}")
-```
+
+`_shared/resolve-base-branch.md`가 존재하는 경우:
+> **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
+
+없는 경우: `project-params.md`의 `base_branch` → 자동 탐지 → 사용자 질문
 
 **b. 변경 파일 목록:**
 ```bash
@@ -65,9 +66,10 @@ git diff $MERGE_BASE...HEAD
 ```
 
 **d. 현재 워크로그 읽기:**
-- Dashboard 전체 (보존 대상)
-- Timeline 전체 (삭제 대상이지만, Design Decisions 추출을 위해 먼저 읽음)
 - Frontmatter (보존)
+- Goal, Completion criteria, Remember, Links (Dashboard 밖 — 보존)
+- Dashboard (Next actions, Decisions, Blockers/Risks — 보존)
+- Timeline 전체 (삭제 대상이지만, Design Decisions 추출을 위해 먼저 읽음)
 
 ### Step 3: 코드 분석
 
@@ -122,7 +124,7 @@ Timeline 영역(`<!-- WORKLOG:TIMELINE:START -->` ~ `<!-- WORKLOG:TIMELINE:END -
 
 - `--dry-run`이면 생성된 문서를 출력만 하고 종료
 - 아니면 worklog.md의 Timeline 영역을 새 내용으로 교체
-- Dashboard, Frontmatter는 변경하지 않음
+- Frontmatter, Goal, Completion criteria, Dashboard, Remember, Links는 변경하지 않음 (Timeline 영역만 교체)
 
 ### Step 6: 결과 출력
 
@@ -140,7 +142,7 @@ Worklog compacted:
 - `<!-- WORKLOG:TIMELINE:INSERT:HERE -->` 마커는 반드시 유지 (compact 이후에도 Timeline 추가 가능)
 - Dashboard 구조 (`<!-- WORKLOG:DASHBOARD:START/END -->`) 유지
 - Frontmatter 절대 수정 금지
-- Remember 섹션은 절대 삭제/축약하지 않는다 (사용자가 명시적으로 삭제 요청한 경우에만 제거)
+- Remember 섹션은 절대 삭제/축약하지 않는다 (Dashboard 밖에 위치, 사용자가 명시적으로 삭제 요청한 경우에만 제거)
 - Decisions의 설계 근거는 Architecture 섹션에 반영한 뒤에도 Dashboard에서 삭제하지 않는다
 
 ## 옵션
@@ -149,4 +151,4 @@ Worklog compacted:
 |------|------|--------|
 | `--dry-run` | 실제 수정 없이 미리보기만 | false |
 
-Proceed now.
+이제 실행하라.

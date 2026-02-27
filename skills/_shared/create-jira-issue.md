@@ -37,10 +37,10 @@
 
 ### 5. projectKey 결정
 
-프로젝트 루트 `rules/workflow.md`가 존재하면:
+프로젝트 루트 `rules/project-params.md`가 존재하면:
 - `jira_pattern` 설정에서 프로젝트 키 prefix 추출 (e.g., `VREW-\d+` → `VREW`)
 
-`rules/workflow.md`가 없거나 `jira_pattern`이 설정되지 않은 경우:
+`rules/project-params.md`가 없거나 `jira_pattern`이 설정되지 않은 경우:
 - 사용자에게 Jira 프로젝트 키 입력 요청 (e.g., `PROJ`)
 
 ### 6. 이슈 생성
@@ -59,5 +59,5 @@ createJiraIssue:
 
 - `issue_key`: e.g., {PROJECT_KEY}-12345
 - `issue_url`: 다음 우선순위로 결정
-  1. 프로젝트 루트 `rules/workflow.md`의 `jira_base_url` 설정이 있으면 `{jira_base_url}{issue_key}` 사용
+  1. 프로젝트 루트 `rules/project-params.md`의 `jira_base_url` 설정이 있으면 `{jira_base_url}{issue_key}` 사용
   2. 없으면 Step 1의 `getAccessibleAtlassianResources`에서 획득한 `cloudUrl`로 `{cloudUrl}/browse/{issue_key}` 구성

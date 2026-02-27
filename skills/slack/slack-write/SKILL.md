@@ -1,5 +1,5 @@
 ---
-name: write-slack-msg
+name: slack-write
 description: Slack 채널에 메시지를 올릴 때 포맷/채널/워크플로우 규칙을 적용
 triggers:
   - "슬랙에 올려"
@@ -11,19 +11,19 @@ argument-hint: "<내용 설명>"
 
 # Slack 메시지 작성 스킬
 
-## Purpose
+## 목적
 
 Slack에 메시지를 올릴 때 포맷 호환성, 채널 확인, 초안 승인 워크플로우를 놓치지 않도록 한다.
 
 ## 워크플로우
 
 1. **초안 먼저** — 바로 올리지 않고, 반드시 초안을 사용자에게 보여주고 승인받은 후 전송한다.
-2. **채널 확인** — `channels_list`로 정확한 채널 ID를 조회한다. 채널 이름으로 추측하지 않는다.
+2. **채널 확인** — Slack MCP 채널 검색 도구(예: `slack_search_channels`)로 정확한 채널 ID를 조회한다. 채널 이름으로 추측하지 않는다.
 3. **승인 후 전송** — 사용자가 "올려", "ㅇㅇ" 등 명시적으로 승인하면 전송한다.
 
 ## content_type 설정 (중요)
 
-`conversations_add_message` 호출 시 반드시 `content_type: "text/plain"`을 사용한다.
+Slack MCP 메시지 전송 도구(예: `slack_send_message`) 호출 시 반드시 `content_type: "text/plain"`을 사용한다.
 - 기본값 `text/markdown`으로 보내면 `*text*`가 마크다운 이탤릭으로 해석되어 볼드가 안 먹는다.
 - `text/plain`으로 보내야 슬랙 네이티브 포맷팅(`*bold*` = 볼드)이 적용된다.
 
@@ -100,6 +100,8 @@ Slack에 메시지를 올릴 때 포맷 호환성, 채널 확인, 초안 승인 
 - [ ] 마크다운 테이블, `#` 헤딩, `[text](url)` 링크를 사용하지 않았는가?
 - [ ] 섹션 간 빈 줄로 구분했는가?
 - [ ] `*볼드*`로 섹션 제목과 핵심 수치를 강조했는가?
-- [ ] 올바른 채널 ID를 `channels_list`로 확인했는가?
+- [ ] 올바른 채널 ID를 Slack MCP 채널 검색 도구로 확인했는가?
 - [ ] 서명을 포함했는가?
 - [ ] 사용자가 명시적으로 승인했는가?
+
+이제 실행하라.

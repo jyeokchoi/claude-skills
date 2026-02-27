@@ -298,7 +298,6 @@ questions:
 | `timezone` | `$detected_timezone` |
 | `timestamp_suffix` | timezone의 약어 (e.g., `Asia/Seoul` → `KST`, `America/New_York` → `EST`) |
 | `shared_types_dir` | `$detected_types` 사용. 빈 값이면 빈 값 유지 |
-| `completion_promise_default` | `**WORKLOG_TASK_COMPLETE**` (항상 고정) |
 
 → 즉시 파일 생성.
 
@@ -359,7 +358,7 @@ claude-skills 설치 완료!
 
 아래 링크의 내용을 사용자에게 보여준다:
 
-https://github.com/jyeokchoi/claude-skills#나만의-하네스와-워크플로우-만들기
+https://github.com/jyeokchoi/claude-skills#claude의-조언
 
 → 즉시 Step 9 실행.
 
@@ -371,3 +370,5 @@ https://github.com/jyeokchoi/claude-skills#나만의-하네스와-워크플로�
 > ```
 > rm -rf {$SKILLS_DIR}/_install
 > ```
+
+이제 실행하라.

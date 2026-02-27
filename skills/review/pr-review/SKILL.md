@@ -1,25 +1,25 @@
 ---
-name: review-pr
+name: pr-review
 description: Use when reviewing PRs requested to you, before starting code review - guides through checkout, summary, optional architecture consultation, and review execution
 ---
 
-# Reviewing Pull Requests
+# Pull Request 리뷰
 
-## Overview
+## 개요
 
 PR 리뷰 워크플로우. **PR 목록 조회 → 사용자 선택** → 워크트리 생성 → 컨텍스트 수집 → 요약 → Architect 상담(선택) → 코드 리뷰 → 코멘트/승인 → 워크트리 정리.
 
 **핵심 원칙: 현재 브랜치를 절대 변경하지 않는다. 항상 임시 워크트리에서 리뷰한다.**
 
-## Project settings
+## 프로젝트 설정
 
-프로젝트에 `rules/workflow.md`가 있으면 다음 설정을 읽는다:
+프로젝트에 설정 파일(`rules/project-params.md`)이 있으면 다음 설정을 읽는다:
 - `base_branch`: PR base 브랜치 (기본값: `gh repo view --json defaultBranchRef`로 자동 감지)
 - `fork_workflow`: fork 기반 워크플로우 여부 (기본값: false)
   - `true`: PR fetch 시 `upstream` remote 사용
   - `false` 또는 미설정: `origin` remote 사용
 
-## Workflow
+## 워크플로우
 
 ```dot
 digraph pr_review {
@@ -35,7 +35,7 @@ digraph pr_review {
     ask_consult [label="아키텍처 검토나\n추가 질문 있으신가요?" shape=diamond];
     architect [label="Architect 상담\n(반복 가능)"];
     ask_review [label="리뷰 방식 선택" shape=diamond];
-    simple [label="간단 리뷰\n/code-review"];
+    simple [label="간단 리뷰\ncode-reviewer 단일 패스"];
     comprehensive [label="종합 리뷰\n/exhaustive-review"];
     comment [label="리뷰 결과 코멘트\ngh pr comment"];
     approve [label="Approve/Request Changes\ngh pr review"];
@@ -61,7 +61,7 @@ digraph pr_review {
 }
 ```
 
-## Steps
+## 단계별 설명
 
 ### 0. 리뷰 요청 PR 목록 조회 & 선택
 
@@ -89,7 +89,7 @@ gh pr list --search "review-requested:@me" --json number,title,author,additions,
 gh pr view <number> --json title,body,additions,deletions,changedFiles,commits,headRefName,baseRefName,files
 
 # PR remote 판별
-# rules/workflow.md의 fork_workflow=true → upstream remote 사용
+# rules/project-params.md의 fork_workflow=true → upstream remote 사용
 # fork_workflow=false 또는 미설정 → origin remote 사용
 REMOTE="upstream"  # or "origin"
 
@@ -138,8 +138,7 @@ Read("/tmp/pr-review-<number>/path/to/changed/file.ts")
 3. **유사 코드 탐색** - 비슷한 패턴 구현 확인
 4. **바로 리뷰 진행**
 
-- 사용자가 1-3 선택 시: Architect 에이전트(`subagent_type=architect`, _shared/agent-routing.md 참조)로 상담 수행, 완료 후 다시 질문
-  - _shared/agent-routing.md 경로: 프로젝트 `.claude/skills/_shared/` 우선, fallback: `~/.claude/skills/_shared/`
+- 사용자가 1-3 선택 시: Architect 에이전트(`subagent_type="oh-my-claudecode:architect"`)로 상담 수행, 완료 후 다시 질문
 - 사용자가 4 선택 시: 다음 단계로 진행
 
 **중요:** 에이전트가 이 질문을 스킵하면 안 됨. 사용자가 "바로 리뷰"를 선택하는 것은 OK.
@@ -147,7 +146,7 @@ Read("/tmp/pr-review-<number>/path/to/changed/file.ts")
 ### 5. 리뷰 방식 선택
 
 사용자에게 질문:
-- **간단 리뷰**: 작은 변경, 빠른 검토 → `/code-review`
+- **간단 리뷰**: 작은 변경, 빠른 검토 → `Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet", ...)` 단일 패스 리뷰
 - **종합 리뷰**: 큰 변경, 3-persona 토론 → `/exhaustive-review`
 
 ### 6. 코드 리뷰 실행
@@ -180,7 +179,7 @@ gh pr review <number> --approve --body "..."
 git worktree remove /tmp/pr-review-<number>
 ```
 
-## Agent Delegation Rules
+## 에이전트 위임 규칙
 
 에이전트(Task tool)에게 리뷰를 위임할 때 반드시 지키는 규칙:
 
@@ -191,7 +190,7 @@ git worktree remove /tmp/pr-review-<number>
 3. **CWD 파일 읽기 금지**: 에이전트에게 워크트리 경로 없이 Read를 허용하면 CWD(= 현재 base 브랜치)의 구버전 파일을 읽어 거짓 양성 이슈를 제기함. **Read를 허용할 때는 반드시 워크트리 경로를 함께 제공**해야 한다.
 4. **mode 설정**: 읽기 전용 리뷰는 `mode: "bypassPermissions"` 가능
 
-## Red Flags
+## 주의 신호
 
 이 생각이 들면 STOP:
 
@@ -205,7 +204,7 @@ git worktree remove /tmp/pr-review-<number>
 | "작은 PR이라 바로 리뷰해도 됨" | 작아도 설계 질문이 있을 수 있음. 물어봐야 함 |
 | "워크트리 정리는 나중에" | 즉시 정리. 안 하면 쌓임 |
 
-## Quick Reference
+## 빠른 참조
 
 | 단계 | 명령어/도구 |
 |------|-------------|
@@ -216,9 +215,13 @@ git worktree remove /tmp/pr-review-<number>
 | 워크트리 생성 | `git worktree add --detach /tmp/pr-review-<number> pr-<number>` |
 | Diff | `git diff <base>...HEAD` (워크트리에서) |
 | 파일 읽기 | `Read("/tmp/pr-review-<number>/path/to/file")` |
-| Architect 상담 | `Task` tool with `subagent_type=architect` |
-| 간단 리뷰 | `/code-review` |
+| Architect 상담 | `Task` tool with `subagent_type="oh-my-claudecode:architect"` |
+| 간단 리뷰 | `Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet")` |
 | 종합 리뷰 | `/exhaustive-review` |
 | 코멘트 | `gh pr comment <number> --body "..."` |
 | 승인 | `gh pr review <number> --approve` |
 | 워크트리 정리 | `git worktree remove /tmp/pr-review-<number>` |
+
+## 절대 규칙
+
+- **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조

@@ -20,18 +20,21 @@ You are operating in a persistent Ralph loop. Your source of truth is the task w
 4. DONE is allowed only if:
    - Completion criteria are satisfied AND
    - Latest Timeline entry contains evidence (commands/files/tests) AND
-   - Dashboard status is set to DONE AND
-   - You output EXACTLY the completion promise string from worklog frontmatter.
+   - Frontmatter phase is set to DONE AND
+   - You output EXACTLY the completion promise string from `rules/project-params.md` project settings (key: `completion_promise`).
 
-## What to maintain in the Dashboard (always-current)
+## Worklog structure
 
-- Status: PLANNING | IN_PROGRESS | BLOCKED | DONE
+**Outside Dashboard (stable — do NOT overwrite):**
 - Goal (1–2 lines)
 - Completion criteria (bullets)
+- Remember (permanent context)
+- Links (accumulative)
+
+**Inside Dashboard (always-current — overwrite between markers):**
 - Next actions: 3–7 checkbox items
 - Blockers/Risks
 - Decisions (short)
-- Links
 
 ## Timeline entry format (newest first)
 
@@ -39,22 +42,20 @@ You are operating in a persistent Ralph loop. Your source of truth is the task w
 
 **Summary**
 
-- ...
-  **Work done**
-- ...
-  **Evidence**
-- Commands:
-  - ...
-- Files:
-  - ...
-- Tests:
-  - ...
-    **Problems / Notes**
-- ...
-  **Next**
-- ...
+- **Work done**
+
+- **Evidence**
+  - Commands:
+  - Files:
+  - Tests:
+
+**Problems / Notes**
+
+- **Next**
+
+-
 
 ## Output discipline
 
 - If not done: do NOT print the completion promise.
-- If done: print ONLY the completion promise on its own line.
+- If done: print ONLY the completion promise (from `rules/project-params.md`) on its own line.

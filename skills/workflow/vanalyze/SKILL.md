@@ -4,38 +4,51 @@ description: Deep code understanding and impact analysis for existing code modif
 argument-hint: 'Usage: /vanalyze [worklog-folder-or-worklog.md] [file-or-module-path]'
 ---
 
-## Project settings
+## 프로젝트 설정
 
-이 스킬은 `rules/workflow.md`의 프로젝트별 설정을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
+이 스킬은 프로젝트 설정 파일(`rules/project-params.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
 
 | 설정 | 기본값 | 용도 |
 |------|--------|------|
 | `shared_types_dir` | (없음) | 공유 타입 디렉토리 |
 | `timestamp_suffix` | (없음) | 타임스탬프 뒤 문자열 (예: KST) |
 
-You are running a deep code analysis workflow to understand existing code and assess the impact of planned modifications. The output serves as input context for `/vplan`.
+기존 코드를 깊이 이해하고 계획된 수정사항의 영향을 평가하는 코드 분석 워크플로우를 실행한다. 출력 결과는 `/vplan`의 입력 컨텍스트로 사용된다.
 
-## Target resolution
+## 대상 결정
 
-- Try loading `_shared/resolve-worklog-target.md` if it exists and follow its logic.
-- Fallback (if shared resolver not available):
-  - If $ARGUMENTS contains a worklog path (folder or .md file):
-    - Resolve worklog as usual → set `WORKLOG_DIR`
-  - Else:
-    - Read ".claude/worklogs/.active" to get the active worklog folder
-- If no worklog target exists, stop and print an error.
-- Set `ANALYSIS_FILE` = `{WORKLOG_DIR}/analysis.md`
-- Any remaining arguments = file paths, module names, or feature descriptions to analyze
+- `_shared/resolve-worklog-target.md`가 존재하면 로드하여 해당 로직을 따른다.
+- 폴백 (공유 리졸버를 사용할 수 없는 경우):
+  - $ARGUMENTS에 워크로그 경로(폴더 또는 .md 파일)가 포함된 경우:
+    - 일반적인 방식으로 워크로그를 결정 → `WORKLOG_DIR` 설정
+  - 그 외:
+    - ".claude/worklogs/.active"를 읽어 활성 워크로그 폴더를 가져옴
+- 워크로그 대상이 없으면 중단하고 오류를 출력한다.
+- `ANALYSIS_FILE` = `{WORKLOG_DIR}/analysis.md`로 설정
+- 나머지 인수 = 분석할 파일 경로, 모듈명, 또는 기능 설명
 
-## Pre-flight
+## 오케스트레이션 컨텍스트
 
-1. Read worklog.md to understand the task context (goal, what needs to change and why)
-2. If `ANALYSIS_FILE` already exists, ask:
-   - "기존 분석이 있습니다. 새로 작성할까요, 기존 분석에 추가할까요?"
+- `_shared/orchestration-context.md`를 로드하고 **서브 스킬 — 읽기** 프로토콜을 따른다.
+- `ORCHESTRATED=true`인 경우: 동작 분기 표에 따라 사용자 인터랙션 동작을 조정한다.
 
-## Phase 0: Bug Reproduction (필수)
+## 사전 준비
 
-버그 리포트가 포함된 워크로그인 경우, 분석 전에 반드시 재현 테스트를 작성하여 버그를 확인한다.
+1. worklog.md를 읽어 작업 컨텍스트 파악 (목표, 변경할 내용과 이유)
+2. 테스트 명령 결정: `_shared/resolve-test-command.md`를 로드하고 해당 로직을 따라 `TEST_COMMAND`를 설정한다.
+3. `ANALYSIS_FILE`이 이미 존재하는 경우:
+   - `ORCHESTRATION_MODE=auto`인 경우: 기존 분석을 덮어쓴다 (질문 생략).
+   - 그 외: "기존 분석이 있습니다. 새로 작성할까요, 기존 분석에 추가할까요?"를 질문한다.
+
+## Phase 0: Bug Reproduction (버그 리포트 시 필수)
+
+이 Phase는 버그 리포트 워크로그에서만 실행한다. 버그 여부 판별:
+1. 워크로그 frontmatter에 `type: bug`이 있으면 → 실행
+2. `type` 필드가 없으면: Goal 섹션에서 "버그", "bug", "fix", "regression", "오류", "에러" 키워드 탐지 → 키워드 발견 시 실행
+3. 판별 불가 시 → `ORCHESTRATION_MODE=auto`면 건너뛰기, 그 외에는 사용자에게 질문: "이 워크로그는 버그 리포트인가요?"
+
+버그 리포트로 판별된 경우, 분석 전에 반드시 재현 테스트를 작성하여 버그를 확인한다.
+버그 리포트가 아닌 경우, Phase 0을 건너뛰고 Phase 1로 진행한다.
 
 ### Step 1: 버그 리포트 파싱
 
@@ -59,9 +72,8 @@ You are running a deep code analysis workflow to understand existing code and as
 작성한 테스트를 실행하여 **반드시 FAIL** 하는지 확인한다:
 
 ```bash
-# rules/workflow.md의 test_command 사용, 없으면 프로젝트 package.json에서 탐지
-# 탐지 불가 시 사용자에게 질문 → project_memory_add_note("test_command: {answer}")
-{test_command} {test-file} --reporter=verbose
+# Pre-flight에서 결정된 TEST_COMMAND 사용
+{TEST_COMMAND} {test-file}
 ```
 
 - **모든 재현 테스트가 FAIL**: 재현 성공. Step 4로 진행.
@@ -89,19 +101,20 @@ AskUserQuestion:
 - **"재현 수정"**: 유저 피드백 반영 → Step 2로 복귀
 - **"중단"**: 워크로그 업데이트 후 종료
 
-### Non-negotiable rules
+### 절대 규칙
 
-- **재현 테스트 없이 분석을 시작하지 않는다.** 재현이 완료되어야 Phase 1 진입 가능.
+- **버그 리포트의 경우, 재현 테스트 없이 분석을 시작하지 않는다.** Phase 0 판별 결과가 버그 리포트이면, 재현이 완료되어야 Phase 1 진입 가능. 버그 리포트가 아닌 경우 Phase 0은 건너뛴다.
 - **테스트는 외부 동작만 검증한다.** implementation detail 테스트 금지.
 - **기존 테스트가 깨지지 않아야 한다.** 재현 테스트 추가 시 기존 테스트 regression 확인.
+- **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조
 
-## Phase 1: Scope identification
+## Phase 1: 분석 범위 식별
 
-Determine WHAT to analyze based on worklog goal + any explicit paths:
+워크로그 목표와 명시적 경로를 기반으로 분석 대상을 결정한다:
 
-1. If explicit file/module paths given: start from those
-2. If only a change intent (from worklog): use `explore` agent + Glob/Grep to identify the relevant code area
-3. Ask the user to confirm the analysis scope:
+1. 명시적 파일/모듈 경로가 주어진 경우: 해당 경로에서 시작
+2. 변경 의도만 있는 경우 (워크로그 기반): `explore` 에이전트 + Glob/Grep으로 관련 코드 영역 파악
+3. 사용자에게 분석 범위 확인 요청:
    ```
    AskUserQuestion:
      question: "분석 범위가 맞나요?"
@@ -113,9 +126,9 @@ Determine WHAT to analyze based on worklog goal + any explicit paths:
          description: "파일이나 모듈을 추가/제거합니다"
    ```
 
-## Phase 2: Deep code understanding
+## Phase 2: 코드 심층 이해
 
-For each module/file in scope, perform parallel analysis:
+범위 내 각 모듈/파일에 대해 병렬 분석을 수행한다:
 
 ### Agent 1: Architecture mapping (구조 분석)
 
@@ -221,9 +234,9 @@ Analyze the test coverage for this code area.
 IMPORTANT: Do NOT use Bash. Analyze only the provided context.")
 ```
 
-## Phase 3: Impact analysis
+## Phase 3: 영향도 분석
 
-Based on the change intent from the worklog, analyze blast radius:
+워크로그의 변경 의도를 기반으로 영향 범위를 분석한다:
 
 ### Agent 4: Impact assessment (영향도 분석)
 
@@ -269,9 +282,9 @@ Assess the impact of the planned change on the existing codebase.
 IMPORTANT: Do NOT use Bash. Analyze only the provided context.")
 ```
 
-## Phase 4: Synthesis
+## Phase 4: 종합
 
-Combine all agent outputs into `ANALYSIS_FILE`:
+모든 에이전트 출력을 `ANALYSIS_FILE`로 합산한다:
 
 ```markdown
 # Analysis: {task-name}
@@ -313,21 +326,22 @@ Combine all agent outputs into `ANALYSIS_FILE`:
 - {areas requiring user decision}
 ```
 
-## Phase 5: User review
+## Phase 5: 사용자 검토
 
-1. Present the analysis summary to the user
-2. Write the full analysis to `ANALYSIS_FILE`
-3. Update worklog Dashboard:
-   - Add analysis file link to Links section
-   - Update next actions to reflect analysis findings
-4. Add Timeline entry documenting the analysis session
+1. 분석 요약을 사용자에게 제시
+2. `ANALYSIS_FILE`에 전체 분석 내용을 작성
+3. `_shared/update-worklog.md`를 통해 워크로그 업데이트:
+   - Links 섹션에 분석 파일 링크 추가
+   - 분석 결과를 반영하여 다음 작업 업데이트
+   - `timeline_entry`: 분석 세션 요약 + 근거
 
-## Output
+## 출력
 
-Print:
-- Analysis file path
-- Key findings summary (3-5 bullet points)
-- Identified risks count by severity
-- Suggestion: "분석이 완료되었습니다. `/vplan {WORKLOG_DIR}` 로 변경 계획을 수립하세요."
+다음을 출력한다:
+- 분석 파일 경로
+- 주요 발견사항 요약 (3-5개 항목)
+- 심각도별 식별된 위험 건수
+- `ORCHESTRATED=true`인 경우: 여기서 종료. vwork가 다음 phase 전이를 관리한다.
+- 그 외: "분석이 완료되었습니다. `/vplan {WORKLOG_DIR}` 로 변경 계획을 수립하세요."
 
-Proceed now.
+이제 실행하라.

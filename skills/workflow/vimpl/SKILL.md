@@ -4,34 +4,48 @@ description: Incremental or auto implementation with TDD, code-simplifier, paral
 argument-hint: 'Usage: /vimpl [worklog-folder-or-worklog.md]'
 ---
 
-## Project settings
+## 프로젝트 설정
 
-이 스킬은 `rules/workflow.md`의 프로젝트별 설정을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
+이 스킬은 프로젝트 설정 파일(`rules/project-params.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
 
 | 설정 | 기본값 | 용도 |
 |------|--------|------|
 | `test_command` | 프로젝트 설정에서 탐지 | 테스트 실행 명령 |
-| `completion_promise_default` | `**WORKLOG_TASK_COMPLETE**` | worklog 기본 완료 약속 |
+| `completion_promise` | `**WORKLOG_TASK_COMPLETE**` | ralph loop 완료 감지용 (OMC 내부) |
 
-You are running an implementation workflow that executes a plan checklist item by item, using TDD, code simplification, parallel verification, and ralph loop persistence.
+TDD, 코드 단순화, 병렬 검증, ralph loop 지속성을 사용하여 플랜 체크리스트를 항목별로 실행하는 구현 워크플로우를 실행한다.
 
-## Target resolution
+## 대상 결정
 
-- Try loading `_shared/resolve-worklog-target.md` if it exists and follow its logic.
-- Fallback (if shared resolver not available):
-  - If $ARGUMENTS is provided:
-    - If it's a folder: target "{arg}/worklog.md"
-    - If it's a file: target that file, derive folder from dirname
-  - Else:
-    - Read ".claude/worklogs/.active" to get the active worklog folder
-- If no target exists, stop and print an error.
-- Set `WORKLOG_DIR` = the worklog folder path
-- Set `PLAN_FILE` = `{WORKLOG_DIR}/plan.md`
-- If `PLAN_FILE` does not exist, stop: "플랜 파일이 없습니다. `/vplan` 으로 먼저 플랜을 작성하세요."
+- `_shared/resolve-worklog-target.md`가 존재하면 로드하여 해당 로직을 따른다.
+- 폴백 (공유 리졸버를 사용할 수 없는 경우):
+  - $ARGUMENTS가 제공된 경우:
+    - 폴더인 경우: "{arg}/worklog.md"를 대상으로 설정
+    - 파일인 경우: 해당 파일을 대상으로 설정하고, dirname에서 폴더 추출
+  - 그 외:
+    - ".claude/worklogs/.active"를 읽어 활성 워크로그 폴더를 가져옴
+- 대상이 없으면 중단하고 오류를 출력한다.
+- `WORKLOG_DIR` = 워크로그 폴더 경로로 설정
+- `PLAN_FILE` = `{WORKLOG_DIR}/plan.md`로 설정
+- `PLAN_FILE`이 없으면 중단: "플랜 파일이 없습니다. `/vplan` 으로 먼저 플랜을 작성하세요."
+- 테스트 명령 결정: `_shared/resolve-test-command.md`를 로드하고 해당 로직을 따라 `TEST_COMMAND`를 설정한다.
 
-## Mode selection (session-persistent)
+## 오케스트레이션 컨텍스트
 
-Ask the user ONCE at the start. Remember this choice for the entire session using `<remember priority>vimpl mode: {choice}</remember>`.
+- `_shared/orchestration-context.md`를 로드하고 **서브 스킬 — 읽기** 프로토콜을 따른다.
+- `ORCHESTRATED=true`인 경우: 아래 모드 선택과 Ralph loop 활성화의 동작이 변경된다.
+
+## 모드 선택 (세션 유지)
+
+**`ORCHESTRATED=true`이고 `ORCHESTRATION_MODE=auto`인 경우:**
+- 자동으로 Auto 모드 선택. 질문 생략.
+
+**`ORCHESTRATED=true`이고 `ORCHESTRATION_MODE=step`인 경우:**
+- 자동으로 Incremental 모드 선택. 질문 생략.
+
+**그 외 (독립 실행):**
+
+세션 시작 시 한 번만 질문한다. `<remember priority>vimpl mode: {choice}</remember>`로 전체 세션 동안 선택을 기억한다.
 
 ```
 AskUserQuestion:
@@ -44,14 +58,19 @@ AskUserQuestion:
       description: "서브에이전트의 exhaustive-review 컨센서스로 자동 승인합니다."
 ```
 
-If a previous mode choice exists in memory, confirm: "이전에 {mode} 모드를 선택하셨습니다. 계속할까요?"
+이전 모드 선택이 메모리에 있으면 확인: "이전에 {mode} 모드를 선택하셨습니다. 계속할까요?"
 
-## Ralph loop activation
+## Ralph loop 활성화
 
-After mode selection, activate the ralph loop to ensure work never stops:
+**`ORCHESTRATED=true`인 경우:** 이 섹션 전체를 건너뛴다. vwork가 ralph loop을 관리하므로 vimpl이 별도로 활성화하지 않는다.
 
-1. Read `completion_promise` from worklog frontmatter. If not set, use `completion_promise_default` from `rules/workflow.md`, falling back to `**WORKLOG_TASK_COMPLETE**`.
-2. Create ralph state via `state_write(mode="ralph")`:
+**그 외 (독립 실행):**
+
+모드 선택 후 작업이 중단되지 않도록 ralph loop을 활성화한다:
+
+1. `state_read(mode="ralph")`로 ralph 상태가 이미 존재하는지 확인. `active=true`이면 활성화 건너뜀 (이미 다른 컨텍스트에서 활성화됨).
+2. `rules/project-params.md`에서 `completion_promise` 사용 (기본값: `**WORKLOG_TASK_COMPLETE**`).
+3. `state_write(mode="ralph")`로 ralph 상태 생성:
    ```json
    {
      "active": true,
@@ -62,7 +81,7 @@ After mode selection, activate the ralph loop to ensure work never stops:
      "linked_ultrawork": true
    }
    ```
-3. Create ultrawork state via `state_write(mode="ultrawork")`:
+4. `state_write(mode="ultrawork")`로 ultrawork 상태 생성:
    ```json
    {
      "active": true,
@@ -70,46 +89,46 @@ After mode selection, activate the ralph loop to ensure work never stops:
    }
    ```
 
-## Implementation loop (per checklist item)
+## 구현 루프 (체크리스트 항목별)
 
-Read the plan file. Find the first unchecked item (`- [ ]`). For each item, execute:
+플랜 파일을 읽는다. 첫 번째 미완료 항목(`- [ ]`)을 찾는다. 각 항목에 대해 다음을 실행한다:
 
-### Step 1: Understand the unit
+### Step 1: 단위 이해
 
-Read the checklist item's intent, files, and test criteria. Read the relevant source files to understand current state.
+체크리스트 항목의 의도, 파일, 테스트 기준을 읽는다. 관련 소스 파일을 읽어 현재 상태를 파악한다.
 
-### Step 2: TDD — Write tests FIRST (Red phase)
+### Step 2: TDD — 테스트 먼저 작성 (Red 단계)
 
-Before writing any implementation code:
+구현 코드를 작성하기 전에:
 
-1. **UX/Behavior-level tests**: Write integration or component tests that describe the expected behavior from a user's perspective. These tests should FAIL initially.
-2. **Unit tests**: Write unit tests for the specific logic being implemented. These should also FAIL initially.
-3. Run the tests to confirm they fail (Red). Use `test_command` from `rules/workflow.md` if available; otherwise detect from package.json or project config.
-4. If tests cannot be written first (e.g., testing infrastructure missing), note this in the worklog and proceed with implementation, but add tests immediately after.
+1. **UX/동작 수준 테스트**: 사용자 관점에서 기대 동작을 기술하는 통합 또는 컴포넌트 테스트를 작성한다. 이 테스트는 초기에 FAIL해야 한다.
+2. **유닛 테스트**: 구현할 특정 로직에 대한 유닛 테스트를 작성한다. 이 테스트도 초기에 FAIL해야 한다.
+3. 테스트를 실행하여 실패 확인 (Red): `{TEST_COMMAND} {test-file}`
+4. 테스트를 먼저 작성할 수 없는 경우 (예: 테스트 인프라 미비), 워크로그에 기록하고 구현을 진행하되 즉시 테스트를 추가한다.
 
-### Step 3: Implementation (Green phase)
+### Step 3: 구현 (Green 단계)
 
-Write the minimum code needed to make all tests pass:
+모든 테스트를 통과하는 데 필요한 최소한의 코드를 작성한다:
 
-1. Implement the change described in the checklist item
-2. Run the tests to confirm they pass (Green). Use `test_command` from `rules/workflow.md` if available; otherwise detect from project config.
-3. If tests fail, iterate until Green.
+1. 체크리스트 항목에 기술된 변경사항을 구현한다
+2. 테스트를 실행하여 통과 확인 (Green): `{TEST_COMMAND} {test-file}`
+3. 테스트가 실패하면 Green이 될 때까지 반복한다.
 
-### Step 4: Code simplification (Refactor phase)
+### Step 4: 코드 단순화 (Refactor 단계)
 
-1. Invoke the `code-simplifier` agent on the modified files:
+1. 수정된 파일에 대해 code-simplifier 에이전트를 실행한다:
    ```
-   Task(subagent_type="code-simplifier:code-simplifier", model="sonnet",
-        prompt="Simplify the recently modified code without changing behavior. Files: {list}")
+   Task(subagent_type="oh-my-claudecode:quality-reviewer", model="sonnet",
+        prompt="Simplify and refactor the recently modified code for clarity and maintainability without changing behavior. Focus on: reducing complexity, improving naming, removing redundancy. Files: {list}")
    ```
-2. After simplification, run tests again to verify nothing broke. Use `test_command` from `rules/workflow.md` if available.
-3. If tests fail after simplification, revert the simplification changes and note in worklog.
+2. 단순화 후 테스트를 다시 실행하여 아무것도 깨지지 않았는지 확인: `{TEST_COMMAND}`
+3. 단순화 후 테스트가 실패하면 단순화 변경을 되돌리고 워크로그에 기록한다.
 
-### Step 5: Parallel verification
+### Step 5: 병렬 검증
 
-Run these two verifications in PARALLEL:
+다음 두 검증을 **병렬로** 실행한다:
 
-**Verification A — Correctness check:**
+**검증 A — 정확성 확인:**
 ```
 Task(subagent_type="oh-my-claudecode:verifier", model="sonnet",
      prompt="Verify this implementation is correct.
@@ -120,31 +139,31 @@ Task(subagent_type="oh-my-claudecode:verifier", model="sonnet",
      IMPORTANT: Do NOT use Bash. Analyze only the provided context.")
 ```
 
-**Verification B — Intent alignment check:**
+**검증 B — 의도 정합성 확인:**
 ```
 Task(subagent_type="oh-my-claudecode:quality-reviewer", model="sonnet",
      prompt="Cross-verify this implementation against the plan and worklog.
      - Plan item: {checklist item from plan.md}
-     - Worklog goal: {from worklog Dashboard}
+     - Worklog goal: {from worklog Goal section}
      - Implementation diff: {changes made}
      - Check: Does the implementation match the intent? Missing anything?
      IMPORTANT: Do NOT use Bash. Analyze only the provided context.")
 ```
 
-If either verification finds issues:
-- Fix the issues
-- Re-run tests
-- Re-run only the failed verification
+어느 한 검증에서 문제가 발견되면:
+- 문제를 수정한다
+- 테스트를 재실행한다
+- 실패한 검증만 재실행한다
 
-### Step 6: Approval
+### Step 6: 승인
 
-**Explain to the user** (both modes):
-- Which files were changed and why
-- Where in the overall architecture these changes sit
-- Why these specific changes were needed
+**사용자에게 설명** (두 모드 모두):
+- 어떤 파일이 왜 변경되었는가
+- 전체 아키텍처에서 이 변경이 어디에 위치하는가
+- 왜 이 특정 변경이 필요했는가
 
-**Incremental mode:**
-- Present the explanation and wait for user approval via AskUserQuestion:
+**점진 모드:**
+- 설명을 제시하고 AskUserQuestion으로 사용자 승인 대기:
   ```
   AskUserQuestion:
     question: "구현 #{N} 검토: {title}. 승인하시겠습니까?"
@@ -157,44 +176,65 @@ If either verification finds issues:
       - label: "롤백"
         description: "이 변경을 되돌립니다"
   ```
-- If "수정 필요": apply feedback → re-run from Step 3
-- If "롤백": `git checkout -- {files}` → mark item as blocked in plan, proceed to next
+- "수정 필요"인 경우: 피드백 반영 → Step 3으로 복귀
+- "롤백"인 경우: `git checkout -- {files}` → 플랜에서 해당 항목을 차단됨으로 표시하고 다음으로 진행
 
-**Auto mode:**
-- Run exhaustive-review on the changes:
+**자동 모드:**
+- 변경사항에 대해 exhaustive-review 실행:
   ```
-  Invoke /exhaustive-review skill logic with the current changes as scope
+  Task(subagent_type="oh-my-claudecode:code-reviewer", model="opus",
+       prompt="Review this implementation change as three personas (Advocate, Surgeon, Challenger).
+       Diff: {diff of current checklist item changes}
+       Context: {relevant file contents}
+       Output: APPROVE or REQUEST_CHANGES with findings.
+       IMPORTANT: Do NOT use Bash. Analyze only the provided context.")
   ```
-- If final recommendation is APPROVE: auto-approve
-- If REQUEST_CHANGES:
-  - Apply suggested fixes
-  - Re-run tests
-  - Re-run lightweight verification
-  - If still not approved after 2 iterations, fall back to asking the user
+- 최종 권고가 APPROVE이면: 자동 승인
+- REQUEST_CHANGES이면:
+  - 제안된 수정사항 반영
+  - 테스트 재실행
+  - 가벼운 검증 재실행
+  - 2회 반복 후에도 승인되지 않으면 사용자에게 질문으로 폴백
 
-### Step 7: Commit and mark complete
+### Step 7: 커밋 및 완료 표시
 
-1. Mark the checklist item as done in plan.md: `- [ ]` → `- [x]`
-2. Update worklog Dashboard (next actions, progress)
-3. Add Timeline entry with evidence
-4. Proceed to next unchecked item
+1. 이 체크리스트 항목의 변경사항을 스테이징하고 커밋한다:
+   ```bash
+   git add {changed source files} {changed test files}
+   git commit -m "{checklist item title}
 
-## Completion
+   Implements item #{N} from plan.
+   Files: {list of changed files}
+   Tests: {pass/fail summary}"
+   ```
+2. plan.md에서 체크리스트 항목을 완료로 표시: `- [ ]` → `- [x]`
+3. `_shared/update-worklog.md`를 통해 워크로그 업데이트:
+   - `dashboard_updates`: 다음 작업, 진행 상황
+   - `timeline_entry`: 완료된 작업 + 근거 (커밋 해시 포함)
+4. 다음 미완료 항목으로 진행
 
-When ALL checklist items in plan.md are checked (`- [x]`):
+## 완료
 
-1. Update worklog Dashboard: status → DONE (only if completion criteria met)
-2. Add final Timeline entry with evidence
-3. Output the completion promise: `<promise>{COMPLETION_PROMISE}</promise>`
-4. Cancel ralph loop: `/oh-my-claudecode:cancel`
+plan.md의 모든 체크리스트 항목이 완료되면 (`- [x]`):
 
-## Non-negotiable rules
+1. `_shared/update-worklog.md`를 통해 워크로그 업데이트:
+   - `timeline_entry`: 완료 근거 (모든 항목 완료, 테스트 결과, 커밋 해시)
 
-- **Never skip TDD.** Tests come before implementation code.
-- **Never skip code-simplifier.** Always refactor after Green.
-- **Never proceed without approval.** Incremental = user. Auto = exhaustive-review consensus.
-- **Never stop working.** Ralph loop ensures persistence. Each iteration must do meaningful work.
-- **Always update worklog.** Before and after each checklist item.
-- **Remember the mode.** Incremental vs Auto is chosen once and persists.
+**`ORCHESTRATED=true`인 경우:** 여기서 종료. vwork가 다음 phase(VERIFY)를 관리한다.
 
-Proceed now.
+**그 외 (독립 실행):**
+
+2. 완료 약속 출력: `<promise>{COMPLETION_PROMISE}</promise>`
+3. ralph loop 취소: `/oh-my-claudecode:cancel`
+
+## 절대 규칙
+
+- **TDD를 건너뛰지 않는다.** 테스트가 구현 코드보다 먼저 작성된다.
+- **code-simplifier를 건너뛰지 않는다.** Green 이후 항상 리팩토링한다.
+- **승인 없이 진행하지 않는다.** 점진 모드 = 사용자. 자동 모드 = exhaustive-review 합의.
+- **작업을 멈추지 않는다.** Ralph loop이 지속성을 보장한다. 각 반복은 의미 있는 작업을 해야 한다.
+- **워크로그를 항상 업데이트한다.** 각 체크리스트 항목 전후에 `_shared/update-worklog.md`를 통해 업데이트한다.
+- **모드를 기억한다.** Incremental vs Auto는 한 번 선택하고 유지된다.
+- **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조
+
+이제 실행하라.
