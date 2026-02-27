@@ -2,7 +2,7 @@
 
 ## 입력
 
-- `diff_target` (기본값: `rules/workflow.md`의 `base_branch`, 없으면 auto-detect): diff 비교 대상 ref
+- `diff_target` (기본값: `rules/project-params.md`의 `base_branch`, 없으면 auto-detect): diff 비교 대상 ref
 - `changed_files`: 변경된 파일 목록
 
 ## 절차

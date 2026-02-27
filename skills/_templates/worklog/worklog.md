@@ -4,28 +4,25 @@ branch: '' # 예: feature/PROJ-10000
 created: '' # 예: 2026-01-05
 owner: '' # git config user.name 값
 worktree_path: '' # git worktree 경로 (사용 시에만)
-status: 'PLANNING' # PLANNING | IN_PROGRESS | BLOCKED | DONE
-completion_promise: '**WORKLOG_TASK_COMPLETE**'
+phase: '' # ANALYZE | PRD | PLAN | IMPL | VERIFY | TEST | DONE
 ---
 
 # Task: <task-name>
+
+## Goal
+
+-
+
+## Completion criteria
+
+-
 
 <!-- WORKLOG:DASHBOARD:START -->
 
 ## Dashboard (always-current)
 
-### Goal
-
--
-
-### Completion criteria
-
--
-
 ### Next actions
 
-- [ ]
-- [ ]
 - [ ]
 
 ### Blockers / Risks
@@ -36,11 +33,15 @@ completion_promise: '**WORKLOG_TASK_COMPLETE**'
 
 -
 
-### Links
+<!-- WORKLOG:DASHBOARD:END -->
+
+## Remember
 
 -
 
-<!-- WORKLOG:DASHBOARD:END -->
+## Links
+
+-
 
 <!-- WORKLOG:TIMELINE:START -->
 <!-- WORKLOG:TIMELINE:INSERT:HERE -->
@@ -52,10 +53,9 @@ completion_promise: '**WORKLOG_TASK_COMPLETE**'
 - **Work done**
 
 - **Evidence**
-
-- ## Commands:
-- ## Files:
-- ## Tests:
+  - Commands:
+  - Files:
+  - Tests:
 
 **Problems / Notes**
 

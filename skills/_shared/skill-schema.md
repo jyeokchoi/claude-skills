@@ -86,7 +86,7 @@ triggers: worklog, start, create task, bootstrap
 **예시:**
 - `autopilot` — 자동 실행
 - `exhaustive-review` — 코드리뷰
-- `tdd-review` — TDD 리뷰
+- `vtest` — 통합 테스트 워크플로우
 
 **특징:**
 - 프로젝트 독립적
@@ -235,7 +235,13 @@ Task(subagent_type="oh-my-claudecode:architect", model="opus", prompt="...")
 | `exclude-local-only-commits.md` | [LOCAL-ONLY] 커밋 제외 |
 | `cleanup-worktree.md` | 워크트리 정리 |
 | `resolve-worklog-target.md` | 워크로그 타겟 결정 |
+| `resolve-base-branch.md` | base branch 결정 |
+| `resolve-test-command.md` | 테스트 명령 결정 |
+| `update-worklog.md` | 워크로그 업데이트 공통 절차 |
+| `orchestration-context.md` | vwork 오케스트레이션 컨텍스트 |
+| `create-jira-issue.md` | Jira 이슈 생성 |
 | `skill-schema.md` | 이 파일 (스킬 스키마) |
+| `delegation-policy.md` | 에이전트를 호출하는 스킬은 이 정책을 따른다 |
 
 ## 스킬 간 호출 규칙
 

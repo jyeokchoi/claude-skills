@@ -41,12 +41,12 @@ cd {worktree_path} && git checkout -B {branch_name} origin/{branch_name}
 
 **`dependency_install`이 제공된 경우:** 해당 커맨드를 `{worktree_path}`를 치환하여 실행.
 
-**제공되지 않은 경우:** `rules/workflow.md`에서 `dependency_install` 설정을 읽는다.
+**제공되지 않은 경우:** `rules/project-params.md`에서 `dependency_install` 설정을 읽는다.
 
 **설정도 없는 경우:** 프로젝트에 맞는 패키지 매니저를 자동 탐지:
 
 ```bash
-# 1. rules/workflow.md의 dependency_install 사용 (있으면)
+# 1. rules/project-params.md의 dependency_install 사용 (있으면)
 # 2. 없으면 worktree 루트에서 lock file 기반 자동 탐지:
 #    yarn.lock → yarn install
 #    package-lock.json → npm install

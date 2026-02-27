@@ -2,143 +2,122 @@
 name: worklog-finish
 description: Finish a worklog task, optionally update a Jira issue, and optionally create a PR
 argument-hint: "Usage: /worklog-finish [--path <worklog-path>] [--pr] [--no-pr] [--no-jira]"
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git push:*), Bash(git status:*), Bash(git add:*), Bash(git commit:*), Bash(git remote:*), Bash(git blame:*), Bash(git worktree:*), Bash(find:*), Bash(grep:*), Bash(ls:*), Bash(rm -rf *), Bash(cd:*), Bash(yarn:*), Bash(gh:*), Read, Write, Edit, AskUserQuestion, Task, mcp__plugin_atlassian_atlassian__*, mcp__github__*
+allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git push:*), Bash(git status:*), Bash(git add:*), Bash(git commit:*), Bash(git remote:*), Bash(git blame:*), Bash(git worktree:*), Bash(find:*), Bash(grep:*), Bash(ls:*), Bash(rm -rf .claude*), Bash(rm -f .claude*), Bash(cd:*), Bash(yarn:*), Bash(gh:*), Read, Write, Edit, AskUserQuestion, Task, mcp__plugin_atlassian_atlassian__*, mcp__github__*
 ---
 
-You are finishing a worklog task, optionally updating the linked Jira issue, and optionally creating a PR.
+worklog 작업을 완료하고, 연결된 Jira 이슈를 선택적으로 업데이트하며, PR을 선택적으로 생성한다.
 
-## Key Design Principles
+## 핵심 설계 원칙
 
-- **Worklog files are NEVER committed to git.** They are uploaded to Gist, attached to Jira (if available), then deleted.
+- **Worklog 파일은 절대 git에 커밋하지 않는다.** Gist에 업로드하고, Jira에 첨부(가능한 경우)한 뒤 삭제한다.
 - **Jira API 마크다운**: `\n` 문자열 리터럴 사용 금지 (escape되어 포맷 깨짐). 실제 줄바꿈 또는 한 줄로 작성.
 
-## Inputs
+## 입력값
 
-- `--path <worklog-path>` (optional): Direct path to worklog folder
-- `--pr` (optional): Create PR after finishing (skip confirmation)
-- `--no-pr` (optional): Skip PR creation
-- `--no-jira` (optional): Skip Jira update even if jira field exists
-- If no path, find worklog matching current branch
+- `--path <worklog-path>` (선택): worklog 폴더의 직접 경로
+- `--pr` (선택): 완료 후 PR 생성 (확인 건너뜀)
+- `--no-pr` (선택): PR 생성 건너뜀
+- `--no-jira` (선택): jira 필드가 있어도 Jira 업데이트 건너뜀
+- 경로 미제공 시 현재 브랜치와 일치하는 worklog 탐색
 
-## Steps
+## 단계
 
-### 0. Detect main repo path (for worktree cleanup later)
+### 0. 메인 저장소 경로 탐지 (worktree 정리를 위해)
 
 ```bash
 MAIN_REPO=$(git worktree list | head -1 | awk '{print $1}')
 ```
 
-### 1. Find the worklog
+### 1. worklog 찾기
 
-- If `--path` provided: use directly
-- Else: get current branch → search `.claude/worklogs/` for matching `branch` field in frontmatter
+- `--path` 제공된 경우: 직접 사용
+- 아닌 경우: 현재 브랜치 조회 → frontmatter의 `branch` 필드가 일치하는 `.claude/worklogs/` 검색
 
-### 2. Read worklog and extract info
+### 2. worklog 읽기 및 정보 추출
 
-- Parse frontmatter: `jira` (→ issue key), `branch`
-- Read Dashboard: Goal, Completion criteria, Decisions
+- frontmatter 파싱: `jira` (→ 이슈 키), `branch`, `worktree_path` (Step 8에서 사용하므로 변수에 보존)
+- Goal, Completion criteria (Dashboard 상단), Dashboard Decisions 읽기
 
-### 3. Collect change information
+### 3. 변경 정보 수집
 
-**Determine base branch:**
+**base branch 결정:**
 
-`rules/workflow.md`에서 `base_branch`와 `fork_workflow` 설정을 읽는다. 없으면 auto-detect:
+`_shared/resolve-base-branch.md`가 존재하는 경우:
+> **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
+
+없는 경우: 프로젝트 설정 파일(`rules/project-params.md`)의 `base_branch` → 자동 탐지 → 사용자 질문
+
+변경 파일 수집:
 ```bash
-# 1. rules/workflow.md에서 base_branch 읽기 (있으면 사용)
-# 2. fork_workflow=true → upstream remote, false → origin remote
-# 3. 설정 없으면 auto-detect
-BASE_REF="${base_branch_from_settings}"  # e.g., "upstream/develop" or "origin/main"
-if [ -z "$BASE_REF" ]; then
-  # 1. gh repo view --json defaultBranchRef로 기본 브랜치 탐지
-  # 2. fork 여부: git remote -v로 upstream 존재 확인 → remote 결정
-  # 3. 탐지 실패 시 사용자에게 질문 → project_memory_add_note("base_branch: {answer}")
-  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "")
-  if git remote -v | grep -q upstream; then
-    REMOTE="upstream"
-  else
-    REMOTE="origin"
-  fi
-  git fetch $REMOTE
-  if [ -n "$DEFAULT_BRANCH" ]; then
-    BASE_REF="$REMOTE/$DEFAULT_BRANCH"
-  else
-    # 사용자에게 질문 → project_memory_add_note("base_branch: {answer}")
-    BASE_REF="$REMOTE/$(git symbolic-ref refs/remotes/$REMOTE/HEAD 2>/dev/null | sed "s|refs/remotes/$REMOTE/||")"
-  fi
-fi
+git fetch $REMOTE
 git diff --name-only $(git merge-base HEAD $BASE_REF)..HEAD
 ```
 
-Show changed files to user and ask for:
-- **수정 범위**: Summary of what was changed
-- **기존 기능 영향 범위**: What existing features might be affected
+변경 파일을 사용자에게 보여주고 다음 항목 요청:
+- **수정 범위**: 변경된 내용 요약
+- **기존 기능 영향 범위**: 영향받을 수 있는 기존 기능
 
-### 4. Update Jira issue (if jira field exists and not --no-jira)
+### 4. Jira 이슈 업데이트 (jira 필드가 있고 --no-jira가 아닌 경우)
 
-a. Check Jira MCP connection (`ToolSearch` for atlassian tools). If unavailable, skip this step and notify user.
+a. Jira MCP 연결 확인 (`ToolSearch`로 atlassian 도구 검색). 사용 불가 시 이 단계를 건너뛰고 사용자에게 알림.
 
-b. `getAccessibleAtlassianResources` → cloudId
+b. `getAccessibleAtlassianResources` → cloudId 획득
 
-c. `getJiraIssue` → current description
+c. `getJiraIssue` → 현재 설명 조회
 
-d. If project has `.claude/skills/_templates/jira/finish-update.md`, load it and fill `{{changes}}` and `{{impact}}`. Otherwise compose a simple update inline.
+d. 프로젝트에 `.claude/skills/_templates/jira/finish-update.md`가 있으면 로드하고 `{{changes}}`와 `{{impact}}`를 채움. 없으면 인라인으로 간단한 업데이트 내용 작성.
 
-e. `editJiraIssue`: prepend update content to existing description
+e. `editJiraIssue`: 기존 설명 앞에 업데이트 내용 추가
 
-### 5. Archive worklog to Gist and cleanup
+### 5. worklog를 Gist에 보관하고 정리
 
-a. Update worklog.md: set `status: 'DONE'`, add final Timeline entry (timestamp, completion summary, changed files)
+a. `_shared/update-worklog.md`로 worklog 업데이트:
+   - `phase_update`: `DONE`
+   - `timeline_entry`: 완료 요약 + 변경 파일
 
-b. Upload to Gist:
+b. Gist에 업로드:
 ```bash
-gh gist create --public --filename worklog.md {worklog_path}/worklog.md
+GIST_URL=$(gh gist create --filename worklog.md {worklog_path}/worklog.md 2>/dev/null)
+```
+- 기본값은 **secret** gist (비공개). 프로젝트 설정 `gist_visibility`가 `public`이면 `--public` 추가.
+- **업로드 실패 시**: 오류 메시지를 출력하고 사용자에게 확인. 삭제하지 않음.
+
+c. 진행 전 gist URL 검증:
+```bash
+if [[ "$GIST_URL" != https://* ]]; then
+  echo "Gist 업로드 실패. 워크로그를 삭제하지 않습니다."
+  # 사용자에게 알리고 Step 6으로 건너뛴다
+fi
 ```
 
-c. If Jira is available: `addCommentToJiraIssue` with gist URL (한 줄로 작성):
+d. Jira 사용 가능하고 gist 성공 시: `addCommentToJiraIssue`에 gist URL 추가 (한 줄로 작성):
 ```
-Worklog 파일: {gist_url}
+Worklog 파일: {GIST_URL}
 ```
 
-d. Delete local worklog folder:
+e. 로컬 worklog 폴더 삭제 (gist 검증은 Step 5c에서 완료):
 ```bash
 rm -rf {worklog_path}
 ```
 
-### 6. Lint and format (MANDATORY)
-
-Detect project type and run linter on changed files:
+f. `.active` 포인터 초기화 (삭제된 worklog를 가리키는 경우):
 ```bash
-PROJECT_DIR=$(git rev-parse --show-toplevel)
+ACTIVE_FILE=".claude/worklogs/.active"
+if [[ -f "$ACTIVE_FILE" ]] && [[ "$(cat "$ACTIVE_FILE")" == *"{worklog_folder_name}"* ]]; then
+  rm -f "$ACTIVE_FILE"
+fi
 ```
 
-프로젝트에 `_shared/lint-format.md`가 있는 경우:
-> **Shared**: `.claude/skills/_shared/lint-format.md` 절차를 따른다.
-> - `changed_files`: Step 3에서 수집한 변경 파일 목록
-> - `project_dir`: 프로젝트 루트 또는 해당 서브디렉터리
+### 6. PR 생성 처리
 
-없는 경우: 프로젝트의 lint 설정을 직접 탐지하여 실행한다 (package.json의 lint 스크립트, .eslintrc, pyproject.toml 등).
-
-### 7. Code review (MANDATORY)
-
-프로젝트에 `_shared/code-review-gate.md`가 있는 경우:
-> **Shared**: `.claude/skills/_shared/code-review-gate.md` 절차를 따른다.
-> - `diff_target`: Step 3에서 결정한 BASE_REF
-> - `changed_files`: Step 3에서 수집한 변경 파일 목록
-
-없는 경우: `code-reviewer` 에이전트를 직접 호출하여 변경 diff를 리뷰한다. HIGH 이상 이슈가 없을 때 통과.
-
-수정 발생 시 Step 6(lint-format) 재실행.
-
-### 8. Handle PR creation
-
-- `--no-pr`: skip to Step 9
-- Neither flag: ask user "PR을 생성하시겠습니까?"
-- If No: skip to Step 9
+- `--no-pr`: Step 7로 건너뜀
+- 플래그 없음: 사용자에게 "PR을 생성하시겠습니까?" 확인
+- 아니오: Step 7로 건너뜀
 
 **a. [LOCAL-ONLY] 커밋 제외 (MANDATORY - push 전에 반드시 실행):**
 
 프로젝트에 `_shared/exclude-local-only-commits.md`가 있는 경우:
-> **Shared**: `.claude/skills/_shared/exclude-local-only-commits.md` 절차를 따른다.
+> **Shared**: `_shared/exclude-local-only-commits.md` 절차를 따른다.
 
 없는 경우:
 ```bash
@@ -150,7 +129,7 @@ git log --grep='\[LOCAL-ONLY\]' --oneline
 **b. PR 생성:**
 
 프로젝트에 `_shared/create-pr.md`가 있는 경우:
-> **Shared**: `.claude/skills/_shared/create-pr.md` 절차를 따른다.
+> **Shared**: `_shared/create-pr.md` 절차를 따른다.
 > - `branch_name`: {branch_name}
 > - `jira_key`: {jira_key} (frontmatter에서 추출, 없으면 생략)
 > - `changes_summary`: Step 3에서 수집한 수정 범위
@@ -176,26 +155,26 @@ EOF
   --base {base_branch}
 ```
 
-### 9. Print final summary
+### 7. 최종 요약 출력
 
-| Item           | Value                                  |
+| 항목           | 값                                     |
 | -------------- | -------------------------------------- |
 | Jira issue     | {jira_url or "없음"}                   |
 | Gist (worklog) | {gist_url}                             |
 | PR             | {pr_url or "미생성"}                   |
 | Branch         | {branch_name}                          |
 | Changed files  | {count}                                |
-| Status         | DONE                                   |
+| Phase          | DONE                                   |
 
-### 10. Handle worktree cleanup (if applicable)
+### 8. worktree 정리 처리 (해당하는 경우)
 
-- Check if worklog had `worktree_path` in frontmatter (before deletion)
-- If worktree exists and differs from main repo: ask user "Worktree를 정리하시겠습니까?"
+- worklog의 frontmatter에 `worktree_path`가 있었는지 확인 (삭제 전)
+- worktree가 존재하고 메인 저장소와 다른 경우: 사용자에게 "Worktree를 정리하시겠습니까?" 확인
 
-**Yes:**
+**예:**
 
 프로젝트에 `_shared/cleanup-worktree.md`가 있는 경우:
-> **Shared**: `.claude/skills/_shared/cleanup-worktree.md` 절차를 따른다.
+> **Shared**: `_shared/cleanup-worktree.md` 절차를 따른다.
 > - `main_repo_path`: {MAIN_REPO}
 > - `worktree_path`: {worktree_path}
 
@@ -205,6 +184,6 @@ cd {MAIN_REPO}
 git worktree remove {worktree_path} --force
 ```
 
-**No:** "Worktree preserved at {worktree_path}"
+**아니오:** "Worktree preserved at {worktree_path}"
 
-Proceed now.
+이제 실행하라.

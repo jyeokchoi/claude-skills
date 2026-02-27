@@ -1,12 +1,8 @@
 # claude-skills
 
-Claude Code에서 실제로 쓰면서 만든 워크플로우 스킬 모음이다. 멀티세션 작업 관리, 플래닝, TDD, 코드 리뷰 같은 것들을 자동화한다.
-
-거창한 프레임워크가 아니다. 반복되는 작업을 마크다운으로 적어둔 것에 가깝다.
-
 ## 설치
 
-Claude Code에 이걸 붙여넣으면 된다:
+Claude Code에 이걸 붙여넣으세요.
 
 ```
 claude-skills를 설치해줘:
@@ -14,41 +10,13 @@ mkdir -p ~/.claude/skills/_install && curl -sL https://raw.githubusercontent.com
 위 명령 실행 후 ~/.claude/skills/_install/SKILL.md 를 읽고 따라해.
 ```
 
-에이전트가 설치, 프로젝트 설정까지 대화하면서 진행한다. 직접 하고 싶으면:
-
-```bash
-curl -sL https://raw.githubusercontent.com/jyeokchoi/claude-skills/main/install.sh | bash
-```
-
 ## 뭐가 들어있나
 
-**워크플로우** — `/vplan` · `/vimpl` · `/vqa` · `/vanalyze`
-
-플래닝부터 구현, QA, 코드 분석까지. 각 단계를 구조화된 절차로 돌린다.
-
-**Worklog** — `/worklog-start` · `/worklog-update` · `/worklog-resume` · `/worklog-ralph` · `/worklog-compact` · `/worklog-finish` · `/worklog-amend` · `/worklog-from-web`
-
-세션이 끊겨도 작업을 이어갈 수 있게 해주는 시스템이다. 마크다운 파일 하나에 상태를 쓰고 읽는다.
-
-**리뷰/테스트** — `/exhaustive-review` · `/tdd-review` · `/integration-test` · `/review-pr`
-
-`exhaustive-review`는 3명의 페르소나가 토론하면서 리뷰한다. 나머지는 TDD, 통합 테스트, PR 리뷰.
-
-**유틸리티** — `/explain-code` · `/offload-to-branch` · `/prd-taskmaster` · `/web-task`
-
-**Slack** — `/slack-share` · `/write-slack-msg` · `/slack-delete`
-
-## 프로젝트별 설정
-
-프로젝트마다 `base_branch`가 다르고, 테스트 명령이 다르고, Jira 패턴이 다르다. `.claude/rules/project-params.md`에 적어두면 모든 스킬이 읽어서 쓴다. 안 적어두면 자동 탐지하거나 물어보고 기억한다.
-
-```bash
-cp ~/.claude/skills/_templates/project-params.md <project>/.claude/rules/project-params.md
-```
+설치 후 에이전트에게 물어보세요.
 
 ---
 
-## 나만의 하네스와 워크플로우 만들기
+## Claude의 조언
 
 이 스킬들은 처음부터 이렇게 설계된 게 아니다. 작업하다가 반복이 보이면 뽑아내고, 안 되면 고치고, 고치다 보니 이렇게 된 거다. 지금도 완성형이 아니다. 그래서 하고 싶은 말은 이거다:
 

@@ -3,20 +3,20 @@ name: explain-code
 description: Use when user asks to understand code changes, branch diffs, architecture, or needs a guided code review order. Triggers on questions like "explain this code", "what changed", "help me understand", "review order".
 ---
 
-# Explain Code
+# 코드 설명
 
-## Overview
+## 개요
 
 사용자가 코드 변경사항이나 현재 코드 구조를 이해할 수 있도록 돕는 스킬. 하이레벨 설명, 아키텍처 다이어그램, 리뷰 순서를 제공한다.
 
-## When to Use
+## 사용 시점
 
 - 브랜치의 변경사항을 이해하고 싶을 때
 - 특정 기능/모듈의 아키텍처를 파악하고 싶을 때
 - 코드 리뷰 순서를 알고 싶을 때
 - "이거 어떻게 동작해?", "뭐가 바뀐 거야?" 같은 질문
 
-## Workflow
+## 워크플로우
 
 ```dot
 digraph explain_flow {
@@ -43,9 +43,9 @@ digraph explain_flow {
 }
 ```
 
-## Project settings
+## 프로젝트 설정
 
-스킬 시작 시 `rules/workflow.md`를 읽어 다음 설정을 가져온다:
+스킬 시작 시 프로젝트 설정 파일(`rules/project-params.md`)을 읽어 다음 설정을 가져온다:
 
 | 설정 | 기본값 | 용도 |
 |------|--------|------|
@@ -53,11 +53,11 @@ digraph explain_flow {
 | `fork_workflow` | `false` | true면 `upstream` remote, false면 `origin` remote 사용 |
 
 `base_branch` 결정 로직:
-1. `rules/workflow.md`에 `base_branch`가 있으면 사용 (e.g., `upstream/develop`)
+1. `rules/project-params.md`에 `base_branch`가 있으면 사용 (e.g., `upstream/develop`)
 2. 없으면 `gh repo view --json defaultBranchRef`로 자동 탐지
 3. 자동 탐지도 실패하면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`
 
-## Step Details
+## 단계 상세
 
 ### 1. 범위 파악
 
@@ -146,7 +146,7 @@ Redux videoplay ─┬─> VideoPlayer   IPlayerController (interface)
 - 왜 이렇게 했는지 → worklog Decision 섹션 참조
 - 다른 방법은 없었는지 → 대안 분석 제공
 
-## Output Format
+## 출력 형식
 
 ```markdown
 ## 하이레벨 요약
@@ -167,7 +167,7 @@ Redux videoplay ─┬─> VideoPlayer   IPlayerController (interface)
 ## 질문 있으신가요?
 ```
 
-## Common Mistakes
+## 흔한 실수
 
 | 실수 | 해결 |
 |------|------|
@@ -175,3 +175,7 @@ Redux videoplay ─┬─> VideoPlayer   IPlayerController (interface)
 | 파일 나열만 함 | 관계와 흐름을 설명해야 함 |
 | 리뷰 순서 없음 | 의존성 기반 순서 필수 제공 |
 | worklog 무시 | Decision, Strategy 섹션에 맥락 있음 |
+
+## 절대 규칙
+
+- **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조

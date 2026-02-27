@@ -9,10 +9,10 @@
 
 ### 0. 도구 탐지
 
-`rules/workflow.md`에 `lint_command`/`format_command`가 있으면 사용한다. 없으면 프로젝트에서 자동 탐지:
+`rules/project-params.md`에 `lint_command`/`format_command`가 있으면 사용한다. 없으면 프로젝트에서 자동 탐지:
 
 ```bash
-# 1. rules/workflow.md에서 lint_command / format_command 읽기 (있으면 사용)
+# 1. rules/project-params.md에서 lint_command / format_command 읽기 (있으면 사용)
 # 2. 없으면 {project_dir}/package.json의 scripts에서 탐지:
 #    - "prettier" script 있으면 → {pkg_manager} prettier --write
 #    - "lint" 또는 "eslint" script 있으면 → {pkg_manager} eslint --fix

@@ -13,7 +13,8 @@
   - 폴더 경로면: `WORKLOG_DIR` = 해당 경로, `WORKLOG_PATH` = `{arguments}/worklog.md`
   - `.md` 파일 경로면: `WORKLOG_PATH` = 해당 경로, `WORKLOG_DIR` = 해당 파일의 상위 디렉터리
 - `arguments`가 없는 경우:
-  - 아래 명령으로 워크로그 디렉터리를 탐색:
+  - **우선**: `.claude/worklogs/.active` 파일이 존재하면 그 내용을 `WORKLOG_DIR`로 사용
+  - **Fallback**: `.active`가 없으면 아래 명령으로 탐색:
     ```bash
     find .claude/worklogs -name "worklog.md" -path "*/worklog.md" | head -5
     ```
