@@ -58,7 +58,19 @@ argument-hint: 'Usage: /vanalyze [worklog-folder-or-worklog.md] [file-or-module-
 
 ### Step 2: 재현 테스트 작성
 
-각 버그에 대해 **외부 동작 관점의 failing test**를 작성한다:
+각 버그에 대해 **외부 동작 관점의 failing test**를 작성한다.
+
+#### 2-1. 버그 타입 분류
+
+버그 증상에서 재현 방식을 결정한다:
+
+| 신호 키워드 | 버그 타입 | 재현 방식 |
+|------------|----------|----------|
+| "UI", "화면", "클릭", "렌더링", "표시", "팝업", "버튼", "페이지", "입력 필드", "scroll", "drag" 등 | UI/브라우저 | 2-2 + 2-3 |
+| "API", "로직", "계산", "반환값", "상태", "데이터", "파싱" 등 | 로직/유닛 | 2-2만 |
+| 판별 불가 | — | 2-2만 (기본) |
+
+#### 2-2. 코드 재현 테스트 (항상 시도)
 
 1. 기존 테스트 파일과 패턴을 파악 (Glob/Grep으로 관련 테스트 탐색)
 2. 기존 테스트 패턴과 동일한 스타일로 재현 테스트 작성
@@ -67,7 +79,25 @@ argument-hint: 'Usage: /vanalyze [worklog-folder-or-worklog.md] [file-or-module-
    - 내부 구현 세부사항 (private ref, 내부 함수 호출 횟수 등)을 직접 검증하지 않는다
 4. 테스트 이름에 버그 번호/설명을 포함한다 (예: `"Bug #1: 역방향 selection 재생 시 range가 비정상"`)
 
+#### 2-3. 브라우저 재현 (UI/브라우저 버그인 경우 추가 실행)
+
+Step 1에서 추출한 버그 시나리오를 `{WORKLOG_DIR}/browser-scenarios.md`에 기록한다 (Dashboard에 기록하지 않는다 — Dashboard는 worklog 업데이트 시 덮어쓰여짐. vbrowser는 이 파일을 Source 0(최우선)으로 로드하므로 파일이 존재하면 Source 1, 2, 3을 모두 건너뜀):
+
+```markdown
+# Browser Scenarios (Bug Reproduction)
+- Scenario: {기대 동작 vs 실제 동작}
+- Preconditions: {초기 상태, 입력값, URL}
+```
+
+그 후 `/vbrowser {WORKLOG_DIR}`을 `ORCHESTRATED=true`로 호출한다. vbrowser 호출 시 `{WORKLOG_DIR}/browser-scenarios.md`가 존재하면 이를 최우선 재현 시나리오로 사용한다.
+
+vbrowser 실행 중 코드 재현 테스트(2-2) 작성을 병행해도 된다.
+
 ### Step 3: Red 확인 (재현 성공)
+
+코드 테스트와 브라우저 재현 결과를 통합하여 확인한다.
+
+#### 코드 테스트 (항상)
 
 작성한 테스트를 실행하여 **반드시 FAIL** 하는지 확인한다:
 
@@ -76,9 +106,33 @@ argument-hint: 'Usage: /vanalyze [worklog-folder-or-worklog.md] [file-or-module-
 {TEST_COMMAND} {test-file}
 ```
 
-- **모든 재현 테스트가 FAIL**: 재현 성공. Step 4로 진행.
+- **모든 재현 테스트가 FAIL**: 재현 성공.
 - **일부 PASS**: 해당 버그는 이미 수정되었거나 재현 조건이 부정확. 테스트를 수정하거나, 유저에게 재현 조건을 확인.
 - **테스트 자체가 에러**: 테스트 코드 수정 후 재시도.
+
+#### 브라우저 재현 결과 (UI/브라우저 버그인 경우)
+
+vbrowser 실행 결과에서 버그 증상과 일치하는 FAIL 시나리오가 있는지 확인한다:
+
+- **FAIL 시나리오 존재**: 브라우저 재현 성공. GIF/스크린샷이 분석 근거로 활용됨.
+- **모두 PASS**: 브라우저에서 재현 불가. 환경 문제(데이터, 로그인 상태 등)일 수 있음 → 유저 확인.
+
+**두 재현 모두 PASS인 경우:** 버그가 이미 수정되었거나 재현 조건이 부정확할 가능성이 높다. 사용자에게 보고:
+
+```
+AskUserQuestion:
+  question: "코드 테스트와 브라우저 재현이 모두 PASS입니다. 어떻게 진행할까요?"
+  header: "All PASS"
+  options:
+    - label: "재현 조건 재검토"
+      description: "버그 재현 조건을 수정하거나 다른 시나리오 시도"
+    - label: "이미 수정됨으로 처리"
+      description: "버그가 이미 수정된 것으로 보고 분석을 종료합니다"
+    - label: "재현 없이 분석 진행"
+      description: "재현 없이 코드 분석만 진행합니다"
+```
+
+두 재현 중 **하나라도 Red**이면 Step 4로 진행한다.
 
 ### Step 4: 유저 확인
 
@@ -106,6 +160,7 @@ AskUserQuestion:
 - **버그 리포트의 경우, 재현 테스트 없이 분석을 시작하지 않는다.** Phase 0 판별 결과가 버그 리포트이면, 재현이 완료되어야 Phase 1 진입 가능. 버그 리포트가 아닌 경우 Phase 0은 건너뛴다.
 - **테스트는 외부 동작만 검증한다.** implementation detail 테스트 금지.
 - **기존 테스트가 깨지지 않아야 한다.** 재현 테스트 추가 시 기존 테스트 regression 확인.
+- **UI/브라우저 버그는 vbrowser로 추가 재현한다.** 코드 테스트만으로 재현이 불충분한 UI 버그는 반드시 vbrowser를 병행한다.
 - **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조
 
 ## Phase 1: 분석 범위 식별

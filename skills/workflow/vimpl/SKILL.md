@@ -89,6 +89,66 @@ AskUserQuestion:
    }
    ```
 
+## 병렬 구현 전략
+
+플랜 파일을 읽어 미완료 체크리스트 항목들의 **의존성**을 분석한다:
+
+- 서로 다른 파일을 건드리고 의존 관계가 없는 항목 → **병렬 그룹**
+- 이전 항목의 결과물(타입, 함수 등)에 의존하는 항목 → **순차 그룹**
+
+**병렬 그룹 처리 (자동 모드):**
+
+의존성 없는 항목 2개 이상이 있으면 executor 에이전트들을 병렬로 실행한다:
+
+```
+Task(subagent_type="oh-my-claudecode:executor", model="sonnet",
+     prompt="
+Implement the following checklist item using TDD.
+
+## Checklist Item
+{item title, intent, files, test criteria}
+
+## Plan Context
+{behavior spec + technical spec from plan.md}
+
+## Relevant Source Files
+{current content of files to modify}
+
+## Existing Test Patterns
+{1-2 existing test file contents for convention reference}
+
+## TEST_COMMAND
+{test command}
+
+## Rules
+- Write failing test FIRST (Red), then implement (Green), then simplify (Refactor)
+- Test external behavior only — no implementation detail tests
+- Follow existing naming and code patterns exactly
+- Do NOT commit or modify plan.md — the orchestrator handles this after all parallel agents complete
+")
+```
+
+병렬 실행 완료 후 오케스트레이터가 일괄 처리한다:
+
+1. 각 executor 결과에서 변경된 파일 목록 수집
+2. **Step 5 병렬 검증 수행** (커밋 전 먼저 실행):
+   - 검증 실패 시: 해당 항목의 변경사항을 수정하고 검증을 재실행한다 (최대 2회 재시도)
+   - 2회 재시도 후에도 검증을 통과하지 못하면 사용자에게 보고하고 해당 항목 처리 여부를 확인한다
+   - 검증 통과 후 다음 단계로 진행한다
+3. `git add {all changed source and test files}` 스테이징
+4. 배치 커밋:
+   ```bash
+   git commit -m "Implement parallel batch: {item titles}
+
+   Files: {list of changed files}
+   Tests: {pass/fail summary}"
+   ```
+5. plan.md에서 완료된 항목들을 `- [ ]` → `- [x]`로 일괄 업데이트
+
+**순차 그룹 (자동 모드 포함) / 점진 모드:**
+
+자동 모드이더라도 의존성이 있는 순차 그룹 항목은 기존 구현 루프(Step 1~7)를 항목별로 순서대로 실행한다. 병렬 불가 이유(의존성 존재)를 워크로그에 기록한다.
+
 ## 구현 루프 (체크리스트 항목별)
 
 플랜 파일을 읽는다. 첫 번째 미완료 항목(`- [ ]`)을 찾는다. 각 항목에 대해 다음을 실행한다:
@@ -153,7 +213,8 @@ Task(subagent_type="oh-my-claudecode:quality-reviewer", model="sonnet",
 어느 한 검증에서 문제가 발견되면:
 - 문제를 수정한다
 - 테스트를 재실행한다
-- 실패한 검증만 재실행한다
+- 실패한 검증만 재실행한다 (최대 2회 재시도)
+- 2회 재시도 후에도 검증을 통과하지 못하면 사용자에게 보고하고 해당 항목 처리 여부를 확인한다
 
 ### Step 6: 승인
 

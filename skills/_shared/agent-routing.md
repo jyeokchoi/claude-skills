@@ -25,6 +25,7 @@
 | build-fixer | oh-my-claudecode:build-fixer | sonnet | 빌드/툴체인/타입 오류 |
 | writer | oh-my-claudecode:writer | haiku | 문서, 마이그레이션 노트 |
 | designer | oh-my-claudecode:designer | sonnet | UI/UX 설계 |
+| qa-tester | oh-my-claudecode:qa-tester | sonnet | 브라우저 E2E 테스트, 인터랙티브 CLI 검증 |
 
 ## 외부 CLI 워커 (omc-teams 호출)
 

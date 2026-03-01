@@ -264,8 +264,31 @@ PRD 요약을 사용자에게 제시. 승인을 요청한다.
 확인된 동작을 기반으로 기술적 구현에 매핑한다:
 
 1. 코드베이스를 탐색하여 현재 아키텍처 파악:
-   - `explore` 에이전트 또는 직접 Glob/Grep으로 관련 파일 탐색
-   - 주요 파일을 읽어 패턴과 컨벤션 파악
+
+   Stage 3 진입 시 **가장 먼저** explore 에이전트를 실행한다 (Stage 2 검토가 끝난 직후):
+
+   ```
+   Task(subagent_type="oh-my-claudecode:explore", model="haiku",
+        prompt="
+   Explore the codebase to map the architecture relevant to this change.
+
+   ## Planned Change
+   {worklog goal + behavior spec from Stage 2}
+
+   ## Find
+   - Files directly related to the planned change (by feature area, naming, imports)
+   - Existing patterns and conventions (naming, file structure, type definitions)
+   - Shared types directory: {shared_types_dir if configured}
+   - Test files adjacent to the relevant source files
+
+   ## Output
+   - Relevant file paths with 1-line description of each
+   - Identified patterns (naming convention, module structure)
+   - Potential files to create vs modify
+   ")
+   ```
+
+   explore 에이전트 결과를 기반으로 주요 파일을 Read 도구로 읽어 컨텍스트를 확보한다.
 2. 특정 파일과 모듈에 변경 사항 매핑
 3. 다음을 식별한다:
    - 수정할 파일 vs 새로 생성할 파일

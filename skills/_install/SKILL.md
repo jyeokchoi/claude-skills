@@ -3,7 +3,7 @@ name: _install
 description: claude-skills 설치 + 프로젝트 설정
 ---
 
-# claude-skills 설치
+# 🛠️ claude-skills 설치
 
 이 스킬은 claude-skills를 설치하고, 프로젝트 설정을 인터랙티브하게 진행한다.
 
@@ -17,7 +17,7 @@ description: claude-skills 설치 + 프로젝트 설정
 
 ---
 
-## Step 1: oh-my-claudecode 확인
+## Step 1: 🤖 oh-my-claudecode 확인
 
 ```bash
 ls ~/.claude/plugins/cache/omc/oh-my-claudecode/ 2>/dev/null && echo "OMC_FOUND" || echo "OMC_NOT_FOUND"
@@ -40,7 +40,7 @@ options:
 
 → 즉시 Step 2 실행.
 
-## Step 2: 스킬 설치 위치 선택
+## Step 2: 📁 스킬 설치 위치 선택
 
 AskUserQuestion:
 
@@ -60,7 +60,7 @@ options:
 
 → 즉시 Step 3 실행.
 
-## Step 3: 스킬 설치
+## Step 3: 📦 스킬 설치
 
 ### 3-1. 설치 실행
 
@@ -121,7 +121,7 @@ options:
 
 → 즉시 Step 4 실행.
 
-## Step 4: 프로젝트 파라미터 위치 선택
+## Step 4: ⚙️ 프로젝트 파라미터 위치 선택
 
 AskUserQuestion:
 
@@ -144,7 +144,7 @@ options:
 
 → 즉시 Step 5 실행.
 
-## Step 5: 자동 탐지 (병렬 실행)
+## Step 5: 🔍 자동 탐지 (병렬 실행)
 
 **아래 명령들을 모두 병렬로 실행한다.** 각각 독립적이므로 동시에 수행해도 안전하다.
 
@@ -201,7 +201,26 @@ find "$DETECT_DIR" -maxdepth 2 -name "package.json" -not -path "*/node_modules/*
 
 → 즉시 Step 6 실행.
 
-## Step 6: 인터랙티브 파라미터 설정
+## Step 6: 🎛️ 인터랙티브 파라미터 설정
+
+### 사전 질문: 자동 설정 여부
+
+AskUserQuestion:
+
+```yaml
+questions:
+  - question: "파라미터 설정을 어떻게 진행할까요?"
+    header: "설정 방식"
+    options:
+      - label: "🚀 알아서 하기 (Recommended)"
+        description: "모든 항목을 자동 탐지 값 또는 기본 Recommended 값으로 설정"
+      - label: "직접 선택"
+        description: "각 항목을 직접 확인하고 선택"
+```
+
+**"알아서 하기"를 선택한 경우**: 배치 1, 배치 2 질문을 모두 건너뛰고, 모든 설정 항목을 Recommended 값(탐지 실패 시 기본값)으로 적용한 뒤 자동 유도 단계로 이동한다.
+
+**"직접 선택"을 선택한 경우**: 아래 배치 1부터 순서대로 진행한다.
 
 ### 배치 1: 핵심 설정 (4개)
 
@@ -314,16 +333,16 @@ cp "$SKILLS_DIR/_templates/project-params.md" "$PARAMS_PATH"
 
 → 즉시 Step 7 실행.
 
-## Step 7: 결과 보고
+## Step 7: ✅ 결과 보고
 
 여기서 처음으로 사용자에게 텍스트를 출력한다. 설정한 모든 값(사용자 선택 + 자동 유도)을 보여준다:
 
 ```
-claude-skills 설치 완료!
+✅ claude-skills 설치 완료!
 
-  스킬:            {$SKILL_COUNT}개 → {$SKILLS_DIR}
-  OMC:             {$OMC_STATUS}
-  프로젝트 설정:   {$PARAMS_PATH 또는 "건너뜀"}
+  📂 스킬:            {$SKILL_COUNT}개 → {$SKILLS_DIR}
+  🤖 OMC:             {$OMC_STATUS}
+  ⚙️  프로젝트 설정:   {$PARAMS_PATH 또는 "건너뜀"}
 
   [사용자 선택]
     base_branch:         {값}
@@ -343,7 +362,7 @@ claude-skills 설치 완료!
     shared_types_dir:    {값}
     format_command:      {값}
 
-추천 시작점:
+🚀 추천 시작점:
   /worklog-start     — 새 작업 시작
   /vplan             — 구조화된 플래닝
   /vimpl             — TDD 기반 구현
@@ -352,17 +371,22 @@ claude-skills 설치 완료!
 
 → 즉시 Step 8 실행.
 
-## Step 8: 에이전트의 조언
+## Step 8: 💬 에이전트의 조언
 
-> 마지막으로, 에이전트가 한마디 하고 싶답니다:
-
-아래 링크의 내용을 사용자에게 보여준다:
+WebFetch로 아래 URL을 가져온 뒤, 가져온 내용을 그대로 사용자에게 텍스트로 출력한다:
 
 https://github.com/jyeokchoi/claude-skills#claude의-조언
 
+출력 형식:
+```
+> 마지막으로, 에이전트가 한마디 하고 싶답니다:
+
+{가져온 내용}
+```
+
 → 즉시 Step 9 실행.
 
-## Step 9: 정리 안내
+## Step 9: 🧹 정리 안내
 
 설치가 완료되었으므로 `_install` 스킬은 더 이상 필요하지 않다. 사용자에게 안내한다:
 
