@@ -98,7 +98,57 @@ done
 rm -rf "$TEMP_DIR"
 ```
 
-### 3-2. 설치 확인
+### 3-2. 훅 등록
+
+`$SKILLS_DIR/_shared/hooks/` 디렉토리에 훅 스크립트가 있으면 `~/.claude/settings.json`에 자동 등록한다.
+
+```bash
+# settings.json 경로
+SETTINGS="$HOME/.claude/settings.json"
+
+# settings.json이 없으면 기본 구조 생성
+[ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
+```
+
+Read 도구로 `$SETTINGS`를 읽고, `hooks` 객체에 아래 항목이 **없는 경우에만** 추가한다 (이미 있으면 건너뛴다):
+
+| 훅 이벤트 | 스크립트 | timeout | matcher |
+|-----------|---------|---------|---------|
+| `PreCompact` | `node "$SKILLS_DIR/_shared/hooks/pre-compact-worklog.mjs"` | 10 | (없음) |
+| `SessionStart` | `node "$SKILLS_DIR/_shared/hooks/post-compact-inject.mjs"` | 5 | `compact` |
+
+등록 형식 (JSON):
+```json
+{
+  "PreCompact": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node \"$SKILLS_DIR/_shared/hooks/pre-compact-worklog.mjs\"",
+          "timeout": 10
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node \"$SKILLS_DIR/_shared/hooks/post-compact-inject.mjs\"",
+          "timeout": 5
+        }
+      ],
+      "matcher": "compact"
+    }
+  ]
+}
+```
+
+`$SKILLS_DIR`는 실제 절대 경로로 치환한다 (e.g., `~/.claude/skills/` → `/Users/username/.claude/skills/`). 기존 `hooks` 객체의 다른 항목(e.g., `UserPromptSubmit`)은 절대 건드리지 않는다. Edit 도구로 정확히 필요한 항목만 추가한다.
+
+### 3-3. 설치 확인
 
 ```bash
 ls "$SKILLS_DIR/vplan/SKILL.md" 2>/dev/null && echo "OK" || echo "FAIL"

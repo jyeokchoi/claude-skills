@@ -2,6 +2,7 @@
 name: vwork
 description: Unified workflow orchestrator. Single entry point for analyze → PRD → plan → implement → verify → test → finish pipeline, driven by worklog phase.
 argument-hint: 'Usage: /vwork [--auto] [worklog-path | task-name | ISSUE-KEY] [brief]'
+# --auto: phase 전이를 자동으로 진행. 없으면 step-by-step (사용자 확인 필요).
 ---
 
 ## 프로젝트 설정
@@ -15,8 +16,7 @@ argument-hint: 'Usage: /vwork [--auto] [worklog-path | task-name | ISSUE-KEY] [b
 - 원본 인자: $ARGUMENTS
 
 인자 해석:
-- `--auto` 플래그: 자동 모드 활성화 (ralph loop이 모든 phase를 구동)
-- `--session` 플래그: 세션 모드 활성화 (ralph loop 상시 유지, 모든 요청을 전담 팀원에게 자동 라우팅)
+- `--auto` 플래그: 자동 모드 활성화 (ralph loop이 모든 phase를 자동 구동)
 - 첫 번째 비플래그 토큰: 워크로그 경로, 작업명, 또는 Jira 이슈 키
 - 나머지 텍스트: 작업 설명 (task brief)
 
@@ -46,7 +46,10 @@ phase 전이는 피드백 루프를 제외하면 **전진 전용**이다.
 
 ### 0. 상태 재수화 (ralph 재진입 감지)
 
-**가장 먼저 실행한다.** 이 단계는 컨텍스트 컴팩션 후 ralph 재진입을 감지하고 인메모리 변수를 복구한다.
+**가장 먼저 실행한다.** 이 단계는 컨텍스트 컴팩션 후 ralph 재진입을 감지하고 인메모리 변수와 행동 규칙을 복구한다. 컴팩션 후 두 가지 자동 복구 소스가 존재한다:
+1. `<notepad-context>` — priority notepad. `vwork활성` 텍스트가 보이면 ralph 재진입으로 간주.
+2. `<worklog-context>` — PreCompact/SessionStart 훅이 주입한 워크로그 Dashboard, Goal, phase 정보. 이 컨텍스트가 있으면 워크로그를 다시 읽지 않고도 현재 상태를 파악할 수 있다.
+두 소스 중 하나라도 보이면 아래 복구 절차를 반드시 따른다.
 
 `state_read(mode="vwork")`를 실행한다:
 
@@ -62,15 +65,36 @@ state에서 모든 변수를 복구한다:
 - `feedback_iterations` = `state.feedback_iterations`
 - `spawned_agents` = `state.spawned_agents` (스폰된 팀원 이름 목록)
 
+행동 규칙 복구 (compaction 후 규칙 유실 방지):
+- `Glob(pattern="**/workflow/vwork/SKILL.md")`로 이 스킬 파일 경로를 찾는다.
+- `Read`로 두 구간을 읽어 행동 규칙을 컨텍스트에 복원한다:
+  1. **`## 절대 규칙`** 섹션 (파일 끝부분) — 위임 금지, 워크로그 업데이트 등 핵심 행동 규칙
+  2. **`#### {current_phase} phase`** 섹션 — 현재 phase의 구체적 실행 지침 (담당 팀원, SendMessage 템플릿 등)
+- 이 단계는 priority notepad의 요약 규칙을 보완하여 상세한 행동 지침을 복원하는 역할이다.
+- **복원 후 행동 원칙**: 오케스트레이터는 SendMessage로 팀원에게 작업을 위임하는 것만 수행한다. 코드 읽기/수정/분석을 직접 하지 않는다.
+
 phase 일치 검증 (state와 워크로그 동기화):
 - 워크로그 파일(`{WORKLOG_DIR}`)의 `phase` 필드를 읽는다.
 - 워크로그 `phase`와 state의 `current_phase`가 다른 경우: **워크로그 값을 진실 기준으로 사용**하고 state의 `current_phase`를 워크로그 값으로 갱신한다.
   - 이유: 컴팩션 직전에 워크로그 업데이트는 완료됐지만 state_write가 완료되지 않았을 수 있기 때문이다.
 - 일치하거나 워크로그 읽기 실패 시: state 값을 그대로 사용한다.
 
-팀 생존 여부 확인:
-- `~/.claude/teams/{team_name}/config.json`이 존재하면: 기존 팀 활성 상태 → **Step 4 (Phase 실행)로 직접 점프**
-- config.json이 없으면: 팀이 종료됨 → **Step 3-B (팀 재생성)로 점프**
+팀 생존 여부 확인 (좀비 팀 감지 포함):
+- `~/.claude/teams/{team_name}/config.json`이 **없으면**: 팀이 종료됨 → **Step 3-B (팀 재생성)로 점프** (Step 3 본체는 건너뜀 — state와 notepad는 이미 존재하므로 팀 재생성만 필요)
+- `config.json`이 **존재하면**: 팀원 프로세스의 실제 활성 여부를 검증한다 (config.json 존재만으로는 프로세스 활성을 보장할 수 없다):
+  1. config.json의 `members` 배열에서 현재 phase의 필수 팀원이 있는지 확인 (Phase별 필수 멤버 매핑):
+     - ANALYZE → `analyzer`
+     - PRD, PLAN → `planner`
+     - IMPL → `implementer`
+     - VERIFY → `qa` (+ `implementer` — 피드백 루프 대비)
+     - TEST → `tester`
+  2. 필수 팀원이 `members`에 없으면: **TeamDelete → Step 3-B로 점프** (Step 3 본체는 건너뜀 — 팀 재생성만 필요)
+  3. 필수 팀원이 `members`에 있으면: 필수 팀원 **전원**에게 ping 전송 (VERIFY처럼 복수인 경우 모두에게 전송):
+     ```
+     SendMessage(type="message", recipient="{필수팀원}", content="health check — 응답하세요", summary="ping")
+     ```
+  4. **15초 이내 전원 응답 있으면**: 기존 팀 활성 확인 → **Step 4 (Phase 실행)로 직접 점프**
+  5. **15초 이내 응답 없으면**: 좀비 팀 판정 → **TeamDelete → Step 3-B로 점프** (Step 3 본체는 건너뜀 — 팀 재생성만 필요)
 
 **`active=false` 또는 state 없는 경우 (신규 실행):**
 
@@ -156,50 +180,15 @@ phase 일치 검증 (state와 워크로그 동기화):
 
 ### 2. 모드 선택
 
+vwork는 항상 세션 모드로 동작한다. ralph loop이 상시 활성화되어 컴팩션 복원력을 보장하고, 모든 작업은 팀원에게 위임된다. auto와 step의 차이는 **phase 전이 방식**뿐이다:
+- **auto**: phase 전이가 자동으로 진행된다.
+- **step**: 각 phase 완료 후 사용자에게 다음 단계 진행 여부를 확인한다.
+
 **`--auto` 플래그가 있는 경우:**
 - mode = auto 설정
 - 출력: "자동 모드 활성화. 완료까지 자동으로 진행합니다."
-- ralph loop 활성화:
-  1. `rules/project-params.md`에서 `completion_promise` 사용 (기본값: `**WORKLOG_TASK_COMPLETE**`)
-  2. `state_write(mode="ralph")`로 ralph 상태 생성:
-     ```json
-     {
-       "active": true,
-       "iteration": 1,
-       "max_iterations": 100,
-       "completion_promise": "{COMPLETION_PROMISE}",
-       "worklog_path": "{WORKLOG_DIR}",
-       "linked_ultrawork": true
-     }
-     ```
-  3. `state_write(mode="ultrawork")`로 ultrawork 상태 생성:
-     ```json
-     {
-       "active": true,
-       "linked_to_ralph": true
-     }
-     ```
-- Step 3으로 진행
 
-**`--session` 플래그가 있는 경우:**
-- mode = session 설정
-- 출력: "vwork 세션이 활성화되었습니다. 모든 요청은 전담 팀원에게 위임됩니다. '종료' 또는 'exit vwork'를 입력하면 세션이 종료됩니다."
-- ralph loop 활성화:
-  1. `completion_promise = "**VWORK_SESSION_END**"` (고정값, `project-params.md` 설정 무시)
-  2. `state_write(mode="ralph")`로 ralph 상태 생성:
-     ```json
-     {
-       "active": true,
-       "iteration": 1,
-       "max_iterations": 500,
-       "completion_promise": "**VWORK_SESSION_END**",
-       "worklog_path": "{WORKLOG_DIR}",
-       "linked_ultrawork": false
-     }
-     ```
-- Step 3으로 진행 (오케스트레이션 컨텍스트 설정 후 Step 4-S 세션 라우팅 진입)
-
-**`--auto` 플래그도 `--session` 플래그도 없는 경우:**
+**`--auto` 플래그가 없는 경우:**
 
 ```
 AskUserQuestion:
@@ -207,16 +196,38 @@ AskUserQuestion:
   header: "Mode"
   options:
     - label: "자동 모드 (Auto)"
-      description: "Ralph loop으로 모든 페이즈를 자동 진행합니다. 각 단계에서 중요 결정만 물어봅니다."
+      description: "모든 페이즈를 자동 진행합니다. 각 단계에서 중요 결정만 물어봅니다."
     - label: "단계별 모드 (Step-by-step)"
       description: "각 페이즈 완료 후 다음 단계 진행 여부를 확인합니다."
-    - label: "세션 모드 (Session)"
-      description: "vwork를 항상 활성 상태로 유지합니다. 모든 요청이 전담 팀원에게 자동 위임됩니다. '종료'를 입력할 때만 세션이 끝납니다."
 ```
 
-- "자동 모드": mode = auto, ralph loop 활성화 (--auto 경로와 동일)
+- "자동 모드": mode = auto
 - "단계별 모드": mode = step
-- "세션 모드": mode = session, --session 경로와 동일하게 처리
+
+**ralph loop 활성화 (auto/step 공통):**
+
+모드 결정 후 ralph loop을 활성화한다:
+1. `rules/project-params.md`에서 `completion_promise` 사용 (기본값: `**WORKLOG_TASK_COMPLETE**`)
+2. `state_write(mode="ralph")`로 ralph 상태 생성:
+   ```json
+   {
+     "active": true,
+     "iteration": 1,
+     "max_iterations": 100,
+     "completion_promise": "{COMPLETION_PROMISE}",
+     "worklog_path": "{WORKLOG_DIR}",
+     "linked_ultrawork": true
+   }
+   ```
+3. `state_write(mode="ultrawork")`로 ultrawork 상태 생성:
+   ```json
+   {
+     "active": true,
+     "linked_to_ralph": true
+   }
+   ```
+
+Step 3으로 진행
 
 ### 3. 오케스트레이션 컨텍스트
 
@@ -224,15 +235,32 @@ AskUserQuestion:
 
 - `_shared/orchestration-context.md`를 로드하고 **vwork — 쓰기** 프로토콜을 따른다.
 - **상태 보존 규칙**: 이 규칙은 vwork 실행 중 **모든 `state_write(mode="vwork")` 호출**에 적용된다. 호출 전에 반드시 `state_read(mode="vwork")`로 현재 상태를 읽고 기존 필드를 모두 보존한 뒤, 변경할 필드만 덮어쓴다 (`team_name`, `current_phase`, `feedback_iterations` 등 누적 필드 유실 방지). VERIFY→IMPL 또는 VERIFY→TEST 전이 시 `feedback_iterations`를 1 증가시킨다 (IMPL→VERIFY, TEST→VERIFY 전이에서는 증가하지 않음). `code_issues_and_test_gaps` route 처리 시 VERIFY→IMPL(+1) 후 재검증에서 test_gaps가 남아 VERIFY→TEST(+1)가 추가될 수 있으며, 이는 의도된 동작이다 (해당 경로는 최대 2회 소비). 최대 5회 초과 시 사용자에게 보고.
-- `state_write(mode="vwork", data={ "active": true, "mode": "{auto|step|session}", "current_phase": "{phase}", "worklog_dir": "{WORKLOG_DIR}", "worklog_slug": "{WORKLOG_SLUG}", "project_type": "{project_type}", "task_type": "{task_type}", "feedback_iterations": {state_read로 읽은 기존 값, 없으면 0}, "spawned_agents": {state_read로 읽은 기존 값, 없으면 []} })`
+- `state_write(mode="vwork", data={ "active": true, "mode": "{auto|step}", "current_phase": "{phase}", "worklog_dir": "{WORKLOG_DIR}", "worklog_slug": "{WORKLOG_SLUG}", "project_type": "{project_type}", "task_type": "{task_type}", "feedback_iterations": {state_read로 읽은 기존 값, 없으면 0}, "spawned_agents": {state_read로 읽은 기존 값, 없으면 []} })`
   - **`team_name` 참고**: 이 시점에서는 팀이 아직 생성되지 않았으므로 `team_name`을 포함하지 않는다. `team_name`은 Step 3-B에서 팀 생성 후 별도 `state_write`로 추가된다. 상태 보존 규칙에 따라 Step 3-B의 state_write가 이 시점의 필드를 모두 보존하면서 `team_name`을 추가한다.
 - **재수화 대상 필드**: `worklog_slug`, `project_type`, `task_type`, `spawned_agents`는 Step 0에서 읽어 변수를 복구하는 용도이므로, 이 값들을 처음 결정하는 시점(Step 1, 2, 3-B)에서 반드시 최신값으로 갱신해야 한다.
-- **step 모드 참고**: step 모드에서는 ralph loop이 없으므로 Step 0 재수화가 실행되지 않는다. 그러나 `spawned_agents`를 포함한 확장 필드는 동일하게 state에 저장한다 — `/vwork` 재호출 없이 세션이 연속될 가능성에 대비하고, 향후 step 모드도 재개 가능하도록 일관성을 유지한다.
+- **step 모드 참고**: step 모드에서도 ralph loop이 활성화되므로 Step 0 재수화가 동일하게 동작한다.
 - 각 서브 스킬 호출 전에 `current_phase`를 해당 phase로 업데이트한다.
+- **Priority notepad 초기 기록**: 오케스트레이션 컨텍스트 설정 후, 컴팩션 복원력을 위해 priority notepad에 핵심 규칙을 기록한다. 이 시점에서 `team_name`은 미정이며 Step 3-B에서 갱신된다:
+  ```
+  <remember priority>vwork활성|mode:{mode}|phase:{phase}|team:미정
+  wl:{WORKLOG_DIR}
+
+  [compaction복구]
+  1.state_read(mode="vwork")→변수복구
+  2.Glob("**/workflow/vwork/SKILL.md")→Read로 절대규칙+현재phase섹션 재읽기
+  3.팀생존확인→phase실행재개
+
+  [절대규칙]
+  -실질작업 절대금지:SendMessage로 팀원위임만 수행
+  -팀원은 스킬(/vanalyze,/vplan,/vimpl,/vqa,/vtest)을 명시적으로 호출
+  -phase전이→워크로그+notepad갱신
+  -순서:ANALYZE→PRD→PLAN→IMPL→VERIFY↔IMPL/TEST→DONE</remember>
+  ```
+  - `{mode}`, `{phase}`, `{WORKLOG_DIR}`는 현재 값으로 치환한다.
 
 ### 3-B. 에이전트 팀 생성
 
-vwork는 항상 5명으로 구성된 전담 팀을 생성하여 실제 작업을 위임한다.
+vwork는 **Just-in-Time 스폰 + Eager Cleanup** 정책을 따른다. 현재 phase에 필요한 팀원만 스폰하고, phase가 완료되면 더 이상 필요 없는 팀원은 즉시 정리한다. 이는 컨텍스트 윈도우와 리소스를 효율적으로 사용하기 위함이다.
 
 팀 생성 전에 기존 팀이 있는지 확인한다:
 - `state_read(mode="vwork")`에서 `team_name` 필드가 있으면:
@@ -244,21 +272,61 @@ vwork는 항상 5명으로 구성된 전담 팀을 생성하여 실제 작업을
 TeamCreate(team_name="vwork-{WORKLOG_SLUG}", description="vwork 에이전트 팀 — {GOAL_SUMMARY}")
 ```
 
-팀 멤버 구성:
+팀 멤버 풀 (전체 역할 정의):
 
 | 역할 | 담당 Phase | subagent_type | model |
 |------|-----------|---------------|-------|
 | `analyzer` | ANALYZE | oh-my-claudecode:debugger | sonnet |
 | `planner` | PRD, PLAN | oh-my-claudecode:planner | opus |
 | `implementer` | IMPL | oh-my-claudecode:executor | sonnet |
+| `qa` | VERIFY | oh-my-claudecode:verifier | sonnet |
 | `tester` | TEST | oh-my-claudecode:test-engineer | sonnet |
-| `vbrowser-agent` | VERIFY (브라우저 테스트) | oh-my-claudecode:qa-tester | sonnet |
 
-스폰 조건:
-- 작업 유형이 `new-feature`이면 `analyzer`는 스폰하지 않는다 (ANALYZE phase가 없음).
-- `project_type`이 `frontend` 또는 `fullstack`이 아니면 `vbrowser-agent`는 스폰하지 않는다.
+참고: 브라우저 E2E 테스트(`/vbrowser`)는 팀원이 아닌, `qa`나 `tester`가 필요 시 내부 서브에이전트로 스폰하여 처리한다.
 
-팀원 스폰:
+#### Just-in-Time 스폰 정책
+
+현재 phase에 필요한 팀원만 스폰한다. 이미 `spawned_agents`에 있고 팀 config에 활성 상태이면 재스폰하지 않는다.
+
+| Phase | 스폰 대상 | 비고 |
+|-------|----------|------|
+| ANALYZE | `analyzer` | task_type=new-feature면 스폰하지 않음 |
+| PRD | `planner` | |
+| PLAN | `planner` | PRD에서 이미 스폰했으면 재사용 |
+| IMPL | `implementer` | |
+| VERIFY | `qa` | |
+| TEST | `tester` | |
+
+피드백 루프 대비 스폰:
+- VERIFY phase에서 `implementer`가 팀에 없으면 추가 스폰한다 (VERIFY→IMPL 피드백 루프 대비).
+- TEST phase에서 `implementer`가 팀에 없으면 추가 스폰한다 (TEST→VERIFY→IMPL 가능성 대비).
+
+#### Eager Cleanup 정책
+
+phase 전이 시 이후 phase에서 필요 없는 팀원을 `shutdown_request`로 정리한다.
+
+| Phase 전이 | 정리 대상 | 근거 |
+|-----------|----------|------|
+| ANALYZE → PRD | `analyzer` | ANALYZE 이후 불필요 |
+| PLAN → IMPL | `planner` | PLAN 이후 불필요 |
+| VERIFY → DONE | (DONE phase에서 `spawned_agents` 전원 정리) | 모든 작업 완료 |
+
+정리하지 **않는** 경우:
+- PRD → PLAN: `planner`는 PLAN에서도 필요하므로 유지
+- IMPL → VERIFY: `implementer`는 피드백 루프(VERIFY→IMPL) 대비로 유지
+- VERIFY → IMPL: 피드백 루프 진입. `qa`는 유지 (재검증 필요)
+- VERIFY → TEST: `qa` 유지 (TEST 완료 후 재검증), `tester` 스폰
+- TEST → VERIFY: `tester` 유지 (재투입 가능), `qa` 이미 활성
+
+정리 절차:
+```
+SendMessage(type="shutdown_request", recipient="{팀원}", content="Phase 완료 — 정리")
+```
+응답 수신 후 `spawned_agents`에서 제거하고 `state_write`로 갱신한다.
+
+#### 팀원 스폰 템플릿
+
+필요 시 아래 템플릿으로 스폰한다 (현재 phase에 해당하는 팀원만):
 ```
 Task(subagent_type="oh-my-claudecode:debugger", model="sonnet",
      team_name="vwork-{WORKLOG_SLUG}", name="analyzer",
@@ -272,56 +340,40 @@ Task(subagent_type="oh-my-claudecode:executor", model="sonnet",
      team_name="vwork-{WORKLOG_SLUG}", name="implementer",
      prompt="당신은 vwork 팀의 implementer입니다. 팀 리드(vwork)의 지시를 기다리세요.")
 
+Task(subagent_type="oh-my-claudecode:verifier", model="sonnet",
+     team_name="vwork-{WORKLOG_SLUG}", name="qa",
+     prompt="당신은 vwork 팀의 qa입니다. 팀 리드(vwork)의 지시를 기다리세요.")
+
 Task(subagent_type="oh-my-claudecode:test-engineer", model="sonnet",
      team_name="vwork-{WORKLOG_SLUG}", name="tester",
      prompt="당신은 vwork 팀의 tester입니다. 팀 리드(vwork)의 지시를 기다리세요.")
-
-Task(subagent_type="oh-my-claudecode:qa-tester", model="sonnet",
-     team_name="vwork-{WORKLOG_SLUG}", name="vbrowser-agent",
-     prompt="당신은 vwork 팀의 vbrowser-agent입니다. 팀 리드(vwork)의 지시를 기다리세요.")
 ```
 
 참고: 팀원들은 OMC 런타임에서 `/vanalyze`, `/vplan` 등의 스킬 명령을 실행할 수 있다고 가정한다. Claude Code 팀원 서브에이전트는 동일한 스킬 로딩 메커니즘을 갖는다. vwork 오케스트레이터는 팀 리더로 동작하며, 팀원이 결과를 보고할 때 `recipient="vwork"`를 사용한다.
 
-팀 생성 후 `state_write(mode="vwork")`에 `team_name`과 `spawned_agents` 필드를 추가한다:
-- `spawned_agents`: 실제 스폰된 팀원 이름 목록. 스폰 조건에 따라 다름:
-  - 항상 포함: `["planner", "implementer", "tester"]`
-  - `task_type=modification`이면 추가: `"analyzer"`
-  - `project_type=frontend/fullstack`이면 추가: `"vbrowser-agent"`
+팀 생성 후 `state_write(mode="vwork")`에 `team_name`과 `spawned_agents` 필드를 추가한다 (상태 보존 규칙에 따라 기존 `feedback_iterations` 등 누적 필드를 보존한다):
+- `spawned_agents`: 현재 활성 팀원 이름 목록. 스폰 시 append, 정리 시 제거.
 - 이 목록은 Step 0 재수화 시 팀원 생존 여부 확인과 DONE phase shutdown_request 대상 결정에 사용된다.
+- 스폰 또는 정리 발생 시 즉시 `state_write`로 `spawned_agents`를 갱신한다.
+- **Priority notepad 갱신 (team_name 반영)**: 팀 생성 완료 후, Step 3에서 기록한 notepad의 `team:미정`을 실제 `team:{team_name}`으로 교체하여 전체 템플릿을 `<remember priority>...</remember>`로 다시 출력한다.
 
-### 4-S. 세션 라우팅 (session 모드 전용)
+### 4-S. 세션 라우팅 (사용자 자유 요청 처리)
 
-이 단계는 `mode = session`인 경우에만 실행된다. Step 3-B 팀 생성 완료 후, ralph loop의 각 반복마다 다음 순서로 처리한다. **session 모드에서 오케스트레이터는 라우터 역할만 수행하며 어떤 요청도 직접 처리하지 않는다.**
+ralph loop의 각 반복에서 사용자가 phase 실행이 아닌 자유 요청을 보낸 경우, 이 단계에 따라 적절한 팀원에게 라우팅한다. **오케스트레이터는 라우터 역할만 수행하며 어떤 요청도 직접 처리하지 않는다.**
 
-**1. 종료 감지 (최우선)**
-
-사용자 메시지에 다음 패턴이 포함된 경우 즉시 세션을 종료한다:
-- "종료", "exit vwork", "vwork 종료", "세션 종료", "그만", "끝내", "/vwork exit", "stop"
-
-종료 절차:
-1. "vwork 세션이 종료됩니다. 진행 중인 워크로그는 이후 `/vwork`로 재개할 수 있습니다." 출력
-2. `state_read(mode="vwork").spawned_agents` 목록의 각 팀원에게 shutdown_request 전송 → 응답 수신 → TeamDelete
-3. `state_write(mode="vwork", data={ "active": false })`
-4. `**VWORK_SESSION_END**` 출력 (ralph loop 종료 트리거)
-
-**2. 현재 phase 읽기**
-
-`state_read(mode="vwork")`로 `current_phase`를 확인한다.
-
-**3. 요청 분류 및 팀원 라우팅**
+**1. 요청 분류 및 팀원 라우팅**
 
 아래 규칙에 따라 항상 팀원에게 위임한다 (직접 처리 금지):
 
 | 요청 유형 | 위임 대상 |
 |----------|----------|
-| 코드 분석, 파일 탐색, 버그 조사, 코드베이스 질문 | `analyzer` (스폰되지 않은 경우 `planner`) |
+| 코드 분석, 파일 탐색, 버그 조사, 코드베이스 질문 | `analyzer` (스폰되지 않은 경우 현재 phase 담당 팀원) |
 | 요구사항 정의, PRD, 사용자 스토리 | `planner` |
 | 아키텍처 설계, 구현 플랜 | `planner` |
 | 코드 구현, 수정, 리팩토링 | `implementer` |
 | 테스트 작성, 커버리지 보강 | `tester` |
-| 브라우저 E2E 테스트, UI 검증 | `vbrowser-agent` (스폰된 경우; 미스폰 시 `tester`) |
-| "계속 진행", "다음 단계", phase 실행 요청 | 현재 phase 담당 팀원 |
+| 검증, QA, 코드 리뷰 | `qa` |
+| "계속 진행", "다음 단계", phase 실행 요청 | Step 4 Phase 실행으로 진행 |
 | 그 외 모든 요청 | 현재 phase 담당 팀원 |
 
 **현재 phase 담당 팀원 기본 매핑:**
@@ -332,10 +384,12 @@ Task(subagent_type="oh-my-claudecode:qa-tester", model="sonnet",
 | PRD | `planner` |
 | PLAN | `planner` |
 | IMPL | `implementer` |
-| VERIFY | `tester` |
+| VERIFY | `qa` |
 | TEST | `tester` |
 
-**4. SendMessage로 위임**
+위임 대상 팀원이 아직 스폰되지 않은 경우, Step 3-B의 JIT 스폰 정책에 따라 먼저 스폰한 후 위임한다.
+
+**2. SendMessage로 위임**
 
 ```
 SendMessage(type="message", recipient="{팀원}",
@@ -348,12 +402,11 @@ SendMessage(type="message", recipient="{팀원}",
   summary="세션 요청 위임")
 ```
 
-**5. 팀원 응답 수신 후 처리**
+**3. 팀원 응답 수신 후 처리**
 
 - 응답을 사용자에게 전달한다.
-- 팀원이 **phase 완료**를 보고하면 Step 5 Phase 전이 프로토콜에 따라 다음 phase로 자동 전이한다 (사용자 확인 없음).
-- phase 전이 후에도 세션은 유지된다. ralph loop이 다음 사용자 메시지를 대기한다.
-- phase가 DONE으로 전이되면 위 종료 절차를 수행한다.
+- 팀원이 **phase 완료**를 보고하면 Step 5 Phase 전이 프로토콜에 따라 다음 phase로 전이한다 (auto 모드: 자동 전이, step 모드: 사용자 확인 후 전이).
+- phase 전이 후에도 세션은 유지된다. ralph loop이 다음 반복을 계속한다.
 
 ### 4. Phase 실행
 
@@ -458,13 +511,11 @@ SendMessage(type="message", recipient="implementer",
 
 #### VERIFY phase
 
-담당 팀원: `tester` (기본). 다음 조건을 **모두** 충족하면 `vbrowser-agent`에게도 병행 위임한다:
-- `project-params.md`의 `project_type`이 `frontend` 또는 `fullstack`
-- `{WORKLOG_DIR}/browser-scenarios.md`가 존재하거나, `{WORKLOG_DIR}/report.md`에 E2E 시나리오가 있음
+담당 팀원: `qa`
 
-`tester`에게 VERIFY 작업을 위임한다:
+`qa`에게 VERIFY 작업을 위임한다:
 ```
-SendMessage(type="message", recipient="tester",
+SendMessage(type="message", recipient="qa",
   content="VERIFY phase를 실행하세요.
 
   작업: /vqa {WORKLOG_DIR} 를 실행하고 결과를 보고하세요.
@@ -472,59 +523,16 @@ SendMessage(type="message", recipient="tester",
   summary="VERIFY phase 위임")
 ```
 
-브라우저 테스트가 필요한 경우 `vbrowser-agent`에게도 병행 위임한다:
-```
-SendMessage(type="message", recipient="vbrowser-agent",
-  content="브라우저 E2E 테스트를 실행하세요.
-
-  작업: /vbrowser {WORKLOG_DIR} 를 실행하고 결과를 보고하세요.
-  ORCHESTRATED=true, ORCHESTRATION_MODE=auto 로 실행하세요 (Phase 2 사용자 확인 생략, 전체 자동 실행). (vwork state에 이미 기록되어 있으나, 메시지에도 명시하여 안전장치로 활용한다.)
-  완료 시 테스트 결과 요약과 pass/fail 수를 반환하세요.",
-  summary="브라우저 테스트 위임")
-```
-
-각 결과가 도착하는 즉시 `.verify-partial.json`에 기록한다 (tester 또는 vbrowser-agent 순서 무관):
-```
-# tester 결과 도착 즉시:
-Write(file_path="{WORKLOG_DIR}/.verify-partial.json",
-  content={
-    "tester_route": "{route}", "tester_summary": "{요약}", "tester_received_at": "{timestamp}",
-    "vbrowser_result": null, "vbrowser_summary": null, "vbrowser_received_at": null
-  })
-
-# vbrowser-agent 결과 도착 즉시 (tester 결과 기존 필드 보존):
-Write(file_path="{WORKLOG_DIR}/.verify-partial.json",
-  content={ ...기존 tester 필드 보존...,
-    "vbrowser_result": "PASS|FAIL|SKIP", "vbrowser_summary": "{요약}", "vbrowser_received_at": "{timestamp}"
-  })
-```
-
-컴팩션 후 재진입 시 `.verify-partial.json` 처리:
-- `tester_route`만 있고 `vbrowser_result=null`인 경우: tester 결과 복구 완료. vbrowser-agent 처리:
-  - 팀 config.json이 존재하면 (vbrowser-agent 활성): 이전 요청의 응답이 아직 큐에 있다고 가정하고 대기한다. 30초 이내 응답 없으면 vbrowser-agent에게 "이전 브라우저 테스트 결과를 다시 보고해 주세요"라고 요청한다.
-  - 팀 config.json이 없으면 (vbrowser-agent 비활성): tester 결과만으로 통합 verdict를 판정한다.
-- 두 결과 모두 있는 경우: 파일에서 읽어 통합 verdict 계산으로 직접 진행한다.
-
-tester와 vbrowser-agent(위임한 경우) **두 결과를 모두 수신한 후** 통합 verdict를 결정한다:
+`qa`로부터 결과 수신 후:
 - `{WORKLOG_DIR}/report.md`를 읽는다. `<!-- QA:VERDICT:START -->` 블록을 파싱하여 `route:` 필드를 추출한다.
 
-vbrowser-agent에게도 위임한 경우, 아래 로직으로 통합 verdict를 결정한다:
-- tester route가 `code_issues` 또는 `code_issues_and_test_gaps` → tester 결과를 우선 적용 (vbrowser 결과 무관)
-- tester route가 `test_gaps` → `test_gaps` 유지 (vbrowser 결과 무관)
-- tester route가 `all_pass`이고 vbrowser-agent FAIL → route를 `code_issues`로 격상 (브라우저 이슈로 재구현 필요)
-- tester route가 `all_pass`이고 vbrowser-agent PASS (SKIP만 있는 경우 포함) → 최종 route `all_pass`
-- vbrowser-agent 결과 판정: FAIL이 하나라도 있으면 FAIL, PASS와 SKIP만 있으면 PASS로 간주한다
-
-통합 verdict 결정 후 `.verify-partial.json`을 삭제한다 (정리):
-```bash
-rm -f "{WORKLOG_DIR}/.verify-partial.json"
-```
-
-최종 verdict `route`에 따른 매핑:
+verdict `route`에 따른 매핑:
   - **all_pass** (전체 통과): `phase: 'DONE'`으로 업데이트
   - **code_issues 또는 code_issues_and_test_gaps** (Intent/Spec/Architecture NEEDS_WORK, 테스트 갭 동반 여부 무관): `phase: 'IMPL'`로 업데이트 (vqa가 이미 FIX/TEST items를 plan.md에 추가함. code_issues_and_test_gaps인 경우 IMPL 완료 후 VERIFY에서 test_gaps만 남으면 TEST로 진행)
   - **test_gaps** (Test Verification NEEDS_WORK만 해당): `phase: 'TEST'`로 업데이트
 - step 모드인 경우: 결과를 제시하고 사용자에게 질문
+
+참고: 브라우저 E2E 테스트가 필요한 경우, `qa`가 `/vqa` 실행 중 내부적으로 서브에이전트를 스폰하여 `/vbrowser`를 실행한다. vwork 오케스트레이터가 직접 브라우저 테스트를 위임하지 않는다.
 
 #### TEST phase
 
@@ -558,6 +566,7 @@ SendMessage(type="message", recipient="tester",
   스폰된 팀원 전원의 응답 수신 후 TeamDelete 호출
 - 오케스트레이션 컨텍스트 정리: `state_write(mode="vwork", data={ "active": false })` — DONE phase는 최종 정리이므로 상태 보존 규칙의 예외다. active=false만 기록하면 충분하다.
 - ralph loop이 활성 상태면 종료: `/oh-my-claudecode:cancel`
+- Priority notepad 정리: `<remember priority></remember>` (빈 내용)을 출력하여 vwork 관련 priority context를 클리어한다.
 - 완료 요약 출력
 
 ### 5. Phase 전이 프로토콜
@@ -566,15 +575,44 @@ SendMessage(type="message", recipient="tester",
 - `phase_update`: `{NEW_PHASE}`
 - `dashboard_updates`: 현재 phase를 반영하는 다음 액션
 - `timeline_entry`: "Phase 전이: {OLD} → {NEW}"
+- **Priority notepad 갱신**: phase 전이 완료 후, priority notepad의 `phase:{OLD}`를 `phase:{NEW}`로 교체하여 전체 템플릿을 `<remember priority>...</remember>`로 다시 출력한다. 워크로그 업데이트 → notepad 갱신 → state_write 순서를 지킨다.
+
+**팀원 Lifecycle 관리 (phase 전이 시 반드시 수행):**
+
+phase 전이가 확정된 후, Step 3-B의 Eager Cleanup 정책과 Just-in-Time 스폰 정책에 따라 아래를 순차 실행한다:
+
+1. **Cleanup**: 이후 phase에서 불필요한 팀원에게 `shutdown_request` 전송. 응답 수신 후 `spawned_agents`에서 제거.
+2. **Spawn**: 다음 phase에 필요한 팀원이 `spawned_agents`에 없으면 Step 3-B 템플릿으로 스폰. `spawned_agents`에 append.
+3. **State 갱신**: `state_write(mode="vwork")`로 `spawned_agents`와 `current_phase`를 갱신.
+
+전이별 실행 요약:
+
+| 전이 | Cleanup | Spawn |
+|------|---------|-------|
+| ANALYZE → PRD | `analyzer` 정리 | `planner` 스폰 |
+| PRD → PLAN | (없음) | (planner 재사용) |
+| PLAN → IMPL | `planner` 정리 | `implementer` 스폰 |
+| IMPL → VERIFY | (implementer 유지) | `qa` 스폰 |
+| VERIFY → IMPL | (없음) | (implementer 이미 활성) |
+| VERIFY → TEST | (없음) | `tester` 스폰 |
+| TEST → VERIFY | (없음) | (qa, tester 이미 활성) |
+| VERIFY → DONE | (DONE phase에서 `spawned_agents` 전원 정리) | (없음) |
 
 ### 6. 피드백 루프
 
 ```
-VERIFY → IMPL    (비테스트 이슈: 스펙 이탈, 아키텍처 문제)
+VERIFY → IMPL    (비테스트 이슈: 스펙 이탈, 아키텍처 문제, 소스 코드 수정 필요)
 VERIFY → TEST    (테스트 갭: 커버리지 부족, 약한 assertion)
+VERIFY ⟳ VERIFY  (trivial test fix: 테스트 파일만 수정, 변경 < 20줄 → qa가 VERIFY 내에서 수정+재검증)
 TEST   → VERIFY  (테스트 작성 완료, 재검증 필요)
 IMPL   → VERIFY  (수정 적용 완료, 재검증 필요)
 ```
+
+Trivial test fix 경로:
+- VERIFY verdict가 `code_issues` 또는 `code_issues_and_test_gaps`일 때, 이슈 목록을 평가한다.
+- 수정 대상이 **테스트 파일만**이고 **변경 < 20줄**이면: qa에게 수정 + 재검증을 위임한다 (IMPL 전이 없이 VERIFY 내에서 처리). 테스트 파일이란 `*.test.{ts,tsx,js,jsx}`, `*.spec.{ts,tsx,js,jsx}`, `__tests__/` 디렉토리 내 파일을 의미한다. 테스트 헬퍼, fixture, mock, config 파일은 소스 코드와 동일하게 IMPL 전이를 거친다.
+- 이 경우에도 `feedback_iterations` 카운터를 1 증가시킨다 (루프 상한 추적).
+- 소스 코드 수정이 필요한 경우는 반드시 IMPL 전이.
 
 루프당 최대 피드백 반복: 5회. 5회 이후 해결되지 않은 경우:
 - **step 모드**: 남은 이슈를 사용자에게 보고. 계속 반복 / 현재 상태 수용 / 중단 중 선택.
@@ -599,10 +637,12 @@ IMPL   → VERIFY  (수정 적용 완료, 재검증 필요)
 - **phase 필드를 항상 최신으로 유지.** 각 phase 전후에 반드시 업데이트.
 - **auto 모드에서 phase를 건너뛰지 않는다.** 전진 전용. 단, 신규 기능은 PRD부터 시작하므로 ANALYZE를 건너뛰는 것이 아니라 시작점이 다른 것이다.
 - **step 모드는 건너뛸 수 있다.** 사용자가 PRD 생략이나 phase 점프를 선택할 수 있다.
-- **auto 모드는 ralph loop을 활성화한다.** 컨텍스트 윈도우 한계를 넘어 지속성을 보장.
+- **auto/step 모두 ralph loop을 활성화한다.** 컨텍스트 윈도우 한계를 넘어 지속성을 보장.
 - **step 모드는 항상 질문한다.** 사용자 확인 없이 자동 진행하지 않는다.
 - **피드백 루프는 상한이 있다.** 루프당 최대 5회 반복. auto 모드에서 상한 도달 시 판단 근거를 워크로그에 기록.
-- **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조
-- **세션 모드에서 직접 처리 금지.** `mode = session`인 경우 오케스트레이터는 라우터 역할만 수행한다. 사용자의 모든 요청은 Step 4-S 규칙에 따라 전담 팀원에게 위임해야 하며, 오케스트레이터가 직접 응답하거나 작업을 수행해서는 안 된다. 유일한 예외는 종료 감지이다.
+- **오케스트레이터는 실행하지 않는다.** 코드 분석, 구현, 테스트, 리뷰 등 실질적인 모든 작업은 반드시 팀원에게 `SendMessage`로 위임한다. 메인 에이전트가 `Read`/`Edit`/`Write`/`Bash`로 직접 코드를 읽거나 수정하는 것은 **금지**된다. 유일한 예외는 워크로그 파일 읽기, state/notepad 관리, 그리고 Step 0 행동 규칙 복구를 위한 SKILL.md 읽기뿐이다.
+- **팀원은 반드시 스킬을 명시적으로 사용한다.** 각 phase의 팀원은 해당 스킬(`/vanalyze`, `/vplan`, `/vimpl`, `/vqa`, `/vtest`)을 호출하여 작업을 수행해야 한다. 스킬 없이 임의로 작업하는 것은 금지된다. 브라우저 E2E 테스트(`/vbrowser`)는 `qa`나 `tester`가 필요 시 내부 서브에이전트로 스폰하여 처리한다.
+- **위임 정책을 준수한다** — `_shared/delegation-policy.md` 참조
+- **사용자 자유 요청도 직접 처리 금지.** ralph loop 중 사용자가 phase 실행과 무관한 요청을 보낸 경우에도 Step 4-S 규칙에 따라 전담 팀원에게 위임해야 하며, 오케스트레이터가 직접 응답하거나 작업을 수행해서는 안 된다.
 
 이제 실행하라.
