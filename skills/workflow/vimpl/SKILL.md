@@ -98,7 +98,72 @@ AskUserQuestion:
 
 **병렬 그룹 처리 (자동 모드):**
 
-의존성 없는 항목 2개 이상이 있으면 executor 에이전트들을 병렬로 실행한다:
+의존성 없는 항목 2개 이상이 있으면 실행 전에 `_shared/cli-runtime-check.md`를 참조하여 CLI 가용성을 확인한다.
+
+**CLI 라우팅 분기:**
+
+- `project_type=backend` + `CODEX_AVAILABLE=true` → 각 항목을 `omc_run_team_start(codex)` 로 실행:
+  ```
+  ToolSearch(query="+omc_run_team_start")
+  mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
+    "teamName": "{WORKLOG_SLUG}-impl",
+    "agentTypes": ["codex"],
+    "tasks": [{"subject": "{item title}", "description": "{아래 task description 형식 참조}"}],
+    "cwd": "{cwd}"
+  })
+  mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
+  ```
+- `project_type=frontend` + `GEMINI_AVAILABLE=true` → `omc_run_team_start(gemini)` 로 실행 (동일 패턴)
+- `project_type=fullstack` → `_shared/cli-runtime-check.md` 섹션 2의 파일 경로 분류 규칙을 적용하여 항목별로 codex/gemini/claude 중 선택
+- `project_type=cli/library` 또는 CLI 미가용 → 기존 Claude Task(executor)로 실행 (변경 없음)
+
+**CLI 워커 task description 형식** (`_shared/cli-runtime-check.md` 섹션 5 참조):
+
+```
+Implement the following checklist item using TDD.
+
+## Checklist Item
+{item title, intent, files, test criteria}
+
+## Plan Context
+{behavior spec + technical spec from plan.md}
+
+## Relevant Source Files
+{current content of files to modify}
+
+## Existing Test Patterns
+{1-2 existing test file contents for convention reference}
+
+## TEST_COMMAND
+{test command}
+
+## Required Output Format
+
+### Red Phase
+- Test file: {path}
+- Test command: {command}
+- Result: FAIL (expected)
+
+### Green Phase
+- Implementation files: {paths}
+- Test result: PASS
+
+### Refactor Phase
+- Changes: {description}
+- Test result: PASS (no regression)
+
+## Testing Rules (MUST follow)
+1. Test ONLY externally observable behavior (function input/output, UI state, user-visible results)
+2. Do NOT test implementation details (internal refs, private variables, internal call counts)
+3. Use mocks/stubs ONLY for external dependencies (APIs, timers, browser APIs) — never mock internal functions of the module under test
+
+## Rules
+- Write failing test FIRST (Red), then implement (Green), then simplify (Refactor)
+- Follow existing naming and code patterns exactly
+- Do NOT commit or modify plan.md — the orchestrator handles this after all parallel agents complete
+```
+
+**Claude fallback (CLI 미가용 또는 cli/library):**
 
 ```
 Task(subagent_type="oh-my-claudecode:executor", model="sonnet",
@@ -175,6 +240,8 @@ Implement the following checklist item using TDD.
 3. 테스트가 실패하면 Green이 될 때까지 반복한다.
 
 ### Step 4: 코드 단순화 (Refactor 단계)
+
+> **CLI 워커 경로에서도 이 단계는 반드시 실행한다.** CLI 워커가 구현을 완료한 후에도 code-simplifier는 항상 별도 claude Task()로 실행한다 (CLI 워커 내부에서 수행하지 않음).
 
 1. 수정된 파일에 대해 code-simplifier 에이전트를 실행한다:
    ```

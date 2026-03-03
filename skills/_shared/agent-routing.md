@@ -61,14 +61,36 @@ Task(subagent_type="oh-my-claudecode:verifier", model="haiku", prompt="...")
 ### omc-teams 호출 예시
 
 ```python
-mcp__team__omc_run_team_start({
+mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
   "teamName": "{context-slug}",
   "agentTypes": ["codex"],  # 또는 "gemini"
   "tasks": [{"subject": "...", "description": "{prompt}"}],
   "cwd": "{cwd}"
 })
-# → mcp__team__omc_run_team_wait({"job_id": "{jobId}"})
+# → mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
+# 정리: mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"teamName": "{context-slug}"})
+# 상태: mcp__plugin_oh-my-claudecode_team__omc_run_team_status({"teamName": "{context-slug}"})
 ```
+
+## 스킬별 CLI 라우팅 매핑
+
+`_shared/cli-runtime-check.md`의 절차를 따라 CLI 가용성을 확인한 뒤 아래 매트릭스를 참조한다.
+
+| project_type | vimpl (병렬 executor) | vtest (갭 분석 · 테스트 작성) | vplan (합의 검토 code-reviewer) |
+|---|---|---|---|
+| `backend` | codex 가용 시 → `omc_run_team_start(codex)` | codex 가용 시 → `omc_run_team_start(codex)` | codex 가용 시 → `omc_run_team_start(codex)` |
+| `frontend` | gemini 가용 시 → `omc_run_team_start(gemini)` | gemini 가용 시 → `omc_run_team_start(gemini)` | gemini 가용 시 → `omc_run_team_start(gemini)` |
+| `fullstack` | 파일 경로 기반: `components/pages/styles` → gemini, `api/services/db/models` → codex, 혼합 → claude fallback | codex 가용 시 → `omc_run_team_start(codex)` | codex 가용 시 → `omc_run_team_start(codex)` |
+| `cli` / `library` | claude `Task(executor)` (변경 없음) | claude `Task(test-engineer)` (변경 없음) | claude `Task(code-reviewer)` (변경 없음) |
+| CLI 미가용 | claude `Task(executor)` (silent fallback) | claude `Task(test-engineer)` (silent fallback) | claude `Task(code-reviewer)` (silent fallback) |
+
+**fullstack vimpl 파일 경로 분류 규칙:**
+- 경로에 `components/`, `pages/`, `styles/`, `ui/`, `views/` 포함 → gemini
+- 경로에 `api/`, `services/`, `db/`, `models/`, `routes/`, `middleware/` 포함 → codex
+- 양쪽 모두 포함(혼합) → claude fallback (충돌 방지)
+
+**`spawned_agents` 기록 형식:** CLI 워커는 `{name}:cli:{codex|gemini}` 형식으로 기록한다.
+예: `implementer:cli:codex`, `tester:cli:gemini`
 
 ## OMC 상태/스킬 매핑
 

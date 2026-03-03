@@ -360,17 +360,67 @@ PRD 요약을 사용자에게 제시. 승인을 요청한다.
 
 ### Round 1: 병렬 검토
 
-Task 도구로 4개 에이전트를 **병렬로** 실행한다:
+Task 도구로 4개 에이전트를 **병렬로** 실행한다. code-reviewer는 `_shared/cli-runtime-check.md`를 참조하여 CLI 가용성에 따라 분기한다.
 
+**architect, quality-reviewer, critic** (변경 없음):
 ```
 Task(subagent_type="oh-my-claudecode:architect", model="opus",
      prompt="Review this plan for architectural soundness... [PLAN_CONTENT]")
-Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet",
-     prompt="Review this plan for implementation feasibility... [PLAN_CONTENT]")
 Task(subagent_type="oh-my-claudecode:quality-reviewer", model="sonnet",
      prompt="Review this plan for quality and completeness... [PLAN_CONTENT]")
 Task(subagent_type="oh-my-claudecode:critic", model="opus",
      prompt="Challenge this plan — find gaps, risks, missing steps... [PLAN_CONTENT]")
+```
+
+**code-reviewer — CLI 라우팅 분기:**
+
+`CODEX_AVAILABLE=true`인 경우:
+```
+ToolSearch(query="+omc_run_team_start")
+mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
+  "teamName": "{WORKLOG_SLUG}-plan-review",
+  "agentTypes": ["codex"],
+  "tasks": [{"subject": "플랜 구현 타당성 검토", "description": "
+Review this plan for implementation feasibility.
+
+IMPORTANT: Do NOT use the Bash tool. Analyze ONLY the context provided.
+
+## Plan Content
+[PLAN_CONTENT]
+
+## PRD Summary
+[PRD_SUMMARY]
+
+## Worklog Goal
+[WORKLOG_GOAL]
+
+## Codebase Context
+[RELEVANT_FILES]
+
+## Required Output Format
+
+### Findings
+| # | Severity | Finding | Suggestion |
+|---|----------|---------|------------|
+
+### Verdict
+APPROVE or REVISE
+
+(REVISE인 경우 CRITICAL/HIGH severity 항목만 근거로 사용)
+"}],
+  "cwd": "{cwd}"
+})
+mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
+```
+
+**codex 응답 파싱 실패 처리:** codex 응답이 위 출력 형식(Findings 테이블 + Verdict)에 맞지 않으면:
+- 해당 라운드에서 claude Task(code-reviewer, sonnet) fallback으로 재실행 (라운드 카운트 소진 않음)
+- 로그: `[CLI fallback] codex 응답 파싱 실패 → claude Task(code-reviewer, sonnet) 재실행`
+
+`CODEX_AVAILABLE=false`인 경우 (claude fallback):
+```
+Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet",
+     prompt="Review this plan for implementation feasibility... [PLAN_CONTENT]")
 ```
 
 각 에이전트 프롬프트에는 반드시 다음이 포함되어야 한다:
