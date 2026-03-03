@@ -33,17 +33,9 @@ which gemini 2>/dev/null && echo "GEMINI_AVAILABLE=true" || echo "GEMINI_AVAILAB
 |---|---|---|---|
 | `backend` | 구현, 테스트 분석, 코드 리뷰 | codex | `CODEX_AVAILABLE=true` |
 | `frontend` | 구현, UI/UX, 테스트 | gemini | `GEMINI_AVAILABLE=true` |
-| `fullstack` | 구현 | 파일 경로 기반 분류 (아래 참조) | CLI 가용 시 |
-| `fullstack` | 테스트 분석, 코드 리뷰 | codex | `CODEX_AVAILABLE=true` |
+| `fullstack` | 모든 task_type | claude fallback | v1: 전체 Claude fallback |
 | `cli` | 모든 task_type | claude Task() | CLI 미사용 |
 | `library` | 모든 task_type | claude Task() | CLI 미사용 |
-
-**fullstack 파일 경로 분류 규칙:**
-
-경로에 포함된 세그먼트로 분류한다:
-- `components/`, `pages/`, `styles/`, `ui/`, `views/`, `layouts/` → **gemini**
-- `api/`, `services/`, `db/`, `models/`, `routes/`, `middleware/`, `server/` → **codex**
-- 양쪽 모두 포함(혼합) 또는 분류 불가 → **claude fallback**
 
 ## 섹션 3: 타임아웃 정책
 
@@ -98,6 +90,7 @@ CLI 워커에 전달하는 task description에는 반드시 아래 섹션을 포
 1. Test ONLY externally observable behavior (function input/output, UI state, user-visible results)
 2. Do NOT test implementation details (internal refs, private variables, internal call counts)
 3. Use mocks/stubs ONLY for external dependencies (APIs, timers, browser APIs) — never mock internal functions of the module under test
+4. Do NOT modify implementation to make tests pass by exploiting knowledge of internals — fix the external behavior instead
 ```
 
 ### vplan 합의 검토 출력 형식 (codex code-reviewer용)
@@ -136,7 +129,20 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
 mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({
   "job_id": "{jobId}"
 })
-# → returns result (status: completed/failed/timeout)
+# → 반환 구조:
+# {
+#   "status": "completed" | "failed" | "timeout",
+#   "taskResults": [
+#     {
+#       "subject": "{task subject}",
+#       "summary": "{결과 요약}",
+#       "output": "{전체 출력 텍스트}"
+#     }
+#   ]
+# }
+# 파싱 패턴:
+# - result.status === "completed" → taskResults[0].output에서 결과 추출
+# - result.status === "failed" / "timeout" → claude Task() fallback으로 전환
 
 # 4. 정리 (phase 전이 시)
 mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({
@@ -150,5 +156,7 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_status({
 # → returns: running / completed / failed / not_found
 ```
 
-**spawned_agents 기록:** CLI 워커 스폰 시 `spawned_agents`에 `{name}:cli:{codex|gemini}` 형식으로 기록한다.
-예: `["implementer:cli:codex", "tester:cli:gemini"]`
+**cli_workers 맵 기록:** CLI 워커 스폰 시 별도 `cli_workers` 맵에 기록한다. `spawned_agents`는 순수 이름 목록을 유지한다.
+- `cli_workers` 형식: `{"implementer": "codex", "tester": "gemini"}`
+- `spawned_agents` 형식: `["implementer", "tester"]` (접미사 없음)
+- `state_write(mode="vwork")` 시 `cli_workers` 필드도 함께 갱신한다.

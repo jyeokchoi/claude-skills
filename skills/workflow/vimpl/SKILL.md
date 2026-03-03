@@ -89,6 +89,19 @@ AskUserQuestion:
    }
    ```
 
+## project_type 감지
+
+CLI 라우팅 분기에 사용할 `project_type`을 결정한다:
+
+1. `rules/project-params.md`에서 `project_type` 확인
+2. 없으면 자동 감지:
+   - package.json에 `react`, `vue`, `svelte`, `next`, `nuxt`, `vite` 포함 → `frontend`
+   - package.json만 있고 프론트엔드 프레임워크 없음 → `backend`
+   - package.json + 서버 프레임워크(`express`, `fastify`, `koa`) 동시 존재 → `fullstack`
+   - go.mod / pyproject.toml / Cargo.toml만 있고 UI 없음 → `backend`
+   - SKILL.md / 마크다운 전용 → `library`
+3. 감지 불가 시 → `library` (claude fallback 경로)
+
 ## 병렬 구현 전략
 
 플랜 파일을 읽어 미완료 체크리스트 항목들의 **의존성**을 분석한다:
@@ -113,7 +126,9 @@ AskUserQuestion:
   })
   mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
   ```
+  → 스폰 후 `cli_workers["implementer"] = "codex"` 기록, `state_write(mode="vwork")`로 갱신
 - `project_type=frontend` + `GEMINI_AVAILABLE=true` → `omc_run_team_start(gemini)` 로 실행 (동일 패턴)
+  → 스폰 후 `cli_workers["implementer"] = "gemini"` 기록, `state_write(mode="vwork")`로 갱신
 - `project_type=fullstack` → `_shared/cli-runtime-check.md` 섹션 2의 파일 경로 분류 규칙을 적용하여 항목별로 codex/gemini/claude 중 선택
 - `project_type=cli/library` 또는 CLI 미가용 → 기존 Claude Task(executor)로 실행 (변경 없음)
 
@@ -156,6 +171,7 @@ Implement the following checklist item using TDD.
 1. Test ONLY externally observable behavior (function input/output, UI state, user-visible results)
 2. Do NOT test implementation details (internal refs, private variables, internal call counts)
 3. Use mocks/stubs ONLY for external dependencies (APIs, timers, browser APIs) — never mock internal functions of the module under test
+4. Do NOT modify implementation to make tests pass by exploiting knowledge of internals — fix the external behavior instead
 
 ## Rules
 - Write failing test FIRST (Red), then implement (Green), then simplify (Refactor)
@@ -195,20 +211,33 @@ Implement the following checklist item using TDD.
 
 병렬 실행 완료 후 오케스트레이터가 일괄 처리한다:
 
-1. 각 executor 결과에서 변경된 파일 목록 수집
-2. **Step 5 병렬 검증 수행** (커밋 전 먼저 실행):
+1. 각 executor/CLI 워커 결과에서 변경된 파일 목록 수집
+
+1-B. **CLI 워커 TDD 출력 파싱 검증** (CLI 워커 경로에서만):
+   - `taskResults[0].output`에서 `### Red Phase`, `### Green Phase`, `### Refactor Phase` 섹션 존재 확인
+   - 형식 불일치 시 → 해당 항목을 claude Task(executor, sonnet) fallback으로 재실행 (1회, 라운드 카운트 미소진)
+   - 재실행 후에도 실패 → 사용자에게 보고
+
+2. **code-simplifier 실행** (검증 전, CLI/Claude 양 경로 모두):
+   ```
+   Task(subagent_type="oh-my-claudecode:quality-reviewer", model="sonnet",
+        prompt="Simplify and refactor the recently modified code for clarity and maintainability without changing behavior. Focus on: reducing complexity, improving naming, removing redundancy. Files: {list of all changed files from this batch}")
+   ```
+
+3. **Step 5 병렬 검증 수행** (커밋 전):
    - 검증 실패 시: 해당 항목의 변경사항을 수정하고 검증을 재실행한다 (최대 2회 재시도)
    - 2회 재시도 후에도 검증을 통과하지 못하면 사용자에게 보고하고 해당 항목 처리 여부를 확인한다
    - 검증 통과 후 다음 단계로 진행한다
-3. `git add {all changed source and test files}` 스테이징
-4. 배치 커밋:
+
+4. `git add {all changed source and test files}` 스테이징
+5. 배치 커밋:
    ```bash
    git commit -m "Implement parallel batch: {item titles}
 
    Files: {list of changed files}
    Tests: {pass/fail summary}"
    ```
-5. plan.md에서 완료된 항목들을 `- [ ]` → `- [x]`로 일괄 업데이트
+6. plan.md에서 완료된 항목들을 `- [ ]` → `- [x]`로 일괄 업데이트
 
 **순차 그룹 (자동 모드 포함) / 점진 모드:**
 

@@ -128,6 +128,7 @@ Identify which behaviors are untested or poorly tested, and recommend test types
 1. Test ONLY externally observable behavior (function input/output, UI state, user-visible results)
 2. Do NOT test implementation details (internal refs, private variables, internal call counts)
 3. Use mocks/stubs ONLY for external dependencies (APIs, timers, browser APIs) — never mock internal functions of the module under test
+4. Do NOT modify implementation to make tests pass by exploiting knowledge of internals — fix the external behavior instead
 
 ## Output Format
 ### Prioritized Gap List
@@ -358,6 +359,7 @@ Write tests for the following gap. Follow existing project conventions exactly.
 1. Test ONLY externally observable behavior (function input/output, UI state, user-visible results)
 2. Do NOT test implementation details (internal refs, private variables, internal call counts)
 3. Use mocks/stubs ONLY for external dependencies (APIs, timers, browser APIs) — never mock internal functions of the module under test
+4. Do NOT modify implementation to make tests pass by exploiting knowledge of internals — fix the external behavior instead
 
 ## Rules
 - Mock all external dependencies

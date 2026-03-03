@@ -76,8 +76,8 @@ result3 = Task(test-engineer, ...)     # 대기
 | Claude (기본) | opus | Task() | 매니징, 설계, 리뷰, 비판 | 항상 사용 가능 |
 | Claude (기본) | sonnet | Task() | 구현, 디버깅, 검증 | 항상 사용 가능 |
 | Claude (기본) | haiku | Task() | 탐색, 가벼운 조회 | 항상 사용 가능 |
-| omc-teams (선호) | codex | omc_run_team_start | 상세 디버깅, 검증, 테스트 | CLI 설치 시 우선 사용 |
-| omc-teams (선호) | gemini | omc_run_team_start | 프론트엔드 코드, UI/UX | CLI 설치 시 우선 사용 |
+| omc-teams (선호) | codex | `mcp__plugin_oh-my-claudecode_team__omc_run_team_start` | 상세 디버깅, 검증, 테스트 | CLI 설치 시 우선 사용 |
+| omc-teams (선호) | gemini | `mcp__plugin_oh-my-claudecode_team__omc_run_team_start` | 프론트엔드 코드, UI/UX | CLI 설치 시 우선 사용 |
 
 ### 런타임 선택 기준
 

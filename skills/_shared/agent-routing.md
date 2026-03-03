@@ -74,23 +74,19 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
 
 ## 스킬별 CLI 라우팅 매핑
 
-`_shared/cli-runtime-check.md`의 절차를 따라 CLI 가용성을 확인한 뒤 아래 매트릭스를 참조한다.
+> **SSOT**: 구체적인 실행 절차·호출 패턴·타임아웃·fallback은 `_shared/cli-runtime-check.md`가 단일 기준이다. 이 섹션은 개요만 기술한다.
 
-| project_type | vimpl (병렬 executor) | vtest (갭 분석 · 테스트 작성) | vplan (합의 검토 code-reviewer) |
-|---|---|---|---|
-| `backend` | codex 가용 시 → `omc_run_team_start(codex)` | codex 가용 시 → `omc_run_team_start(codex)` | codex 가용 시 → `omc_run_team_start(codex)` |
-| `frontend` | gemini 가용 시 → `omc_run_team_start(gemini)` | gemini 가용 시 → `omc_run_team_start(gemini)` | gemini 가용 시 → `omc_run_team_start(gemini)` |
-| `fullstack` | 파일 경로 기반: `components/pages/styles` → gemini, `api/services/db/models` → codex, 혼합 → claude fallback | codex 가용 시 → `omc_run_team_start(codex)` | codex 가용 시 → `omc_run_team_start(codex)` |
-| `cli` / `library` | claude `Task(executor)` (변경 없음) | claude `Task(test-engineer)` (변경 없음) | claude `Task(code-reviewer)` (변경 없음) |
-| CLI 미가용 | claude `Task(executor)` (silent fallback) | claude `Task(test-engineer)` (silent fallback) | claude `Task(code-reviewer)` (silent fallback) |
+| project_type | 선택 CLI | 비고 |
+|---|---|---|
+| `backend` | codex | `CODEX_AVAILABLE=true` 시 |
+| `frontend` | gemini | `GEMINI_AVAILABLE=true` 시 |
+| `fullstack` | claude fallback | v1: 전체 Claude fallback (파일 경로 분기 미사용) |
+| `cli` / `library` | claude fallback | 항상 |
+| CLI 미가용 | claude fallback | silent fallback |
 
-**fullstack vimpl 파일 경로 분류 규칙:**
-- 경로에 `components/`, `pages/`, `styles/`, `ui/`, `views/` 포함 → gemini
-- 경로에 `api/`, `services/`, `db/`, `models/`, `routes/`, `middleware/` 포함 → codex
-- 양쪽 모두 포함(혼합) → claude fallback (충돌 방지)
-
-**`spawned_agents` 기록 형식:** CLI 워커는 `{name}:cli:{codex|gemini}` 형식으로 기록한다.
-예: `implementer:cli:codex`, `tester:cli:gemini`
+**CLI 워커 상태 관리:** `cli_workers` 맵으로 관리. `spawned_agents`는 순수 이름 목록을 유지한다.
+- 형식: `cli_workers: {"implementer": "codex", "tester": "gemini"}`
+- `spawned_agents`에 접미사를 붙이지 않는다.
 
 ## OMC 상태/스킬 매핑
 
