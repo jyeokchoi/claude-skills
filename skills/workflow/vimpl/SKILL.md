@@ -129,7 +129,7 @@ CLI 라우팅 분기에 사용할 `project_type`을 결정한다:
   → 스폰 후 `cli_workers["implementer"] = "codex"` 기록, `state_write(mode="vwork")`로 갱신
 - `project_type=frontend` + `GEMINI_AVAILABLE=true` → `omc_run_team_start(gemini)` 로 실행 (동일 패턴)
   → 스폰 후 `cli_workers["implementer"] = "gemini"` 기록, `state_write(mode="vwork")`로 갱신
-- `project_type=fullstack` → `_shared/cli-runtime-check.md` 섹션 2의 파일 경로 분류 규칙을 적용하여 항목별로 codex/gemini/claude 중 선택
+- `project_type=fullstack` → claude Task(executor) fallback (v1: 전체 Claude fallback)
 - `project_type=cli/library` 또는 CLI 미가용 → 기존 Claude Task(executor)로 실행 (변경 없음)
 
 **CLI 워커 task description 형식** (`_shared/cli-runtime-check.md` 섹션 5 참조):

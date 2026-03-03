@@ -46,14 +46,14 @@ phase 전이는 피드백 루프를 제외하면 **전진 전용**이다.
 
 이 테이블이 모든 phase-팀원 관계의 단일 진실 기준이다. Step 0, 3-B, 4-S, 4, 5에서 이 테이블을 참조한다. `_shared/agent-routing.md`에 전체 에이전트 라우팅 테이블이 정의되어 있으며, 아래는 vwork 전용 역할명-Phase 매핑이다.
 
-| Phase | 담당 팀원 | 스킬 | subagent_type | model |
-|-------|----------|------|---------------|-------|
-| ANALYZE | `analyzer` | /vanalyze | oh-my-claudecode:debugger | sonnet |
-| PRD | `planner` | /vplan (Stage 1) | oh-my-claudecode:planner | opus |
-| PLAN | `planner` | /vplan (Stages 2-4) | oh-my-claudecode:planner | opus |
-| IMPL | `implementer` | /vimpl | oh-my-claudecode:executor | sonnet |
-| VERIFY | `qa` | /vqa | oh-my-claudecode:verifier | sonnet |
-| TEST | `tester` | /vtest | oh-my-claudecode:test-engineer | sonnet |
+| Phase | 담당 팀원 | 스킬 | subagent_type | model | 비고 |
+|-------|----------|------|---------------|-------|------|
+| ANALYZE | `analyzer` | /vanalyze | oh-my-claudecode:debugger | sonnet | |
+| PRD | `planner` | /vplan (Stage 1) | oh-my-claudecode:planner | opus | |
+| PLAN | `planner` | /vplan (Stages 2-4) | oh-my-claudecode:planner | opus | |
+| IMPL | `implementer` | /vimpl | oh-my-claudecode:executor | sonnet | CLI 워커 라우팅 가능 (backend→codex, frontend→gemini) |
+| VERIFY | `qa` | /vqa | oh-my-claudecode:verifier | sonnet | |
+| TEST | `tester` | /vtest | oh-my-claudecode:test-engineer | sonnet | CLI 워커 라우팅 가능 (backend→codex) |
 
 ## 상태 보존 규칙
 
