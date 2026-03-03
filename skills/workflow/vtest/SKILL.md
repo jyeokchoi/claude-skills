@@ -240,7 +240,7 @@ AskUserQuestion:
     - label: "선택 작성"
       description: "특정 갭을 선택하여 작성합니다"
     # WEB_APP=true이고 E2E 갭이 존재하는 경우에만 추가:
-    - label: "브라우저 E2E 테스트 (Claude in Chrome)"
+    - label: "브라우저 E2E 테스트 (Playwright MCP)"
       description: "PRD 유저 시나리오를 브라우저에서 직접 실행합니다 (/vbrowser)"
 ```
 
@@ -252,13 +252,12 @@ AskUserQuestion:
 
 ## Phase 2B: 브라우저 E2E 실행
 
-"브라우저 E2E 테스트 (Claude in Chrome)"가 선택된 경우에만 실행한다.
+"브라우저 E2E 테스트 (Playwright MCP)"가 선택된 경우에만 실행한다.
 
 `/vbrowser {WORKLOG_DIR}` 스킬을 호출한다. vbrowser가 다음을 처리한다:
-- 앱 URL 감지 (Chrome 탭 → 워크로그 메타데이터 → 사용자 질문)
+- 앱 URL 감지 (dev server → 워크로그 메타데이터 → 사용자 질문)
 - PRD 유저 시나리오 + E2E 갭 목록에서 테스트 케이스 수집
-- GIF 녹화 및 브라우저 직접 실행
-- 실패 시 스크린샷 캡처
+- Playwright MCP로 브라우저 직접 실행 및 스크린샷 캡처
 - `{WORKLOG_DIR}/browser-test-report.md` 보고서 생성
 - 워크로그 업데이트
 
@@ -442,7 +441,7 @@ Write tests for the following gap. Follow existing project conventions exactly.
 - {test-file-1}: {N} tests ({descriptions})
 - {test-file-2}: {N} tests ({descriptions})
 # Phase 2B가 실행된 경우:
-- browser-test-report.md: {N} scenarios ({PASS}개 통과, GIF {N}개)
+- browser-test-report.md: {N} scenarios ({PASS}개 통과, 스크린샷 {N}개)
 ```
 
 4. `_shared/update-worklog.md`를 통해 워크로그 업데이트:

@@ -38,6 +38,74 @@ options:
 
 "OMC 설치" 선택 시 공식 가이드를 따른다. 설치 성공하면 `$OMC_STATUS = "installed"`. 실패 시 경고만 하고 계속 진행한다.
 
+→ 즉시 Step 1-B 실행.
+
+## Step 1-B: 🎭 Playwright MCP 확인
+
+vbrowser 스킬(브라우저 E2E 테스트)을 사용하려면 Playwright MCP 서버가 필요하다.
+
+### 1-B-1. 설치 여부 확인
+
+`~/.claude.json`(또는 `~/.claude/settings.json`)을 읽어 `mcpServers.playwright` 설정이 있는지 확인한다:
+
+```bash
+grep -l "playwright" ~/.claude.json ~/.claude/settings.json 2>/dev/null && echo "PLAYWRIGHT_FOUND" || echo "PLAYWRIGHT_NOT_FOUND"
+```
+
+- **PLAYWRIGHT_FOUND:** `$PLAYWRIGHT_STATUS = "installed"`. → 즉시 Step 2로.
+- **PLAYWRIGHT_NOT_FOUND:**
+
+AskUserQuestion:
+
+```yaml
+question: "Playwright MCP가 설정되지 않았습니다. 브라우저 E2E 테스트(/vbrowser)에 필요합니다."
+header: "Playwright"
+options:
+  - label: "설치 (Recommended)"
+    description: "@playwright/mcp를 설치하고 Claude Code에 등록합니다"
+  - label: "건너뛰기"
+    description: "나중에 설치. /vbrowser 스킬 사용 불가"
+```
+
+### 1-B-2. 설치 실행 ("설치" 선택 시)
+
+```bash
+# Claude Code CLI로 MCP 서버 등록 (user scope)
+claude mcp add playwright -s user -- npx @playwright/mcp@latest
+```
+
+설치 후 확인:
+```bash
+grep "playwright" ~/.claude.json 2>/dev/null && echo "OK" || echo "FAIL"
+```
+
+- **OK:** `$PLAYWRIGHT_STATUS = "installed"`
+- **FAIL:** 수동 설정 안내 출력:
+
+> Playwright MCP 자동 등록에 실패했습니다. `~/.claude.json`의 `mcpServers`에 수동으로 추가하세요:
+> ```json
+> {
+>   "mcpServers": {
+>     "playwright": {
+>       "command": "npx",
+>       "args": ["@playwright/mcp@latest"]
+>     }
+>   }
+> }
+> ```
+
+`$PLAYWRIGHT_STATUS = "manual"`로 설정하고 계속 진행.
+
+### 1-B-3. 브라우저 설치
+
+Playwright MCP가 등록되면 브라우저 바이너리도 필요하다:
+
+```bash
+npx playwright install chromium 2>/dev/null
+```
+
+실패 시 경고만 출력하고 계속 진행한다 (첫 실행 시 자동 설치됨).
+
 → 즉시 Step 2 실행.
 
 ## Step 2: 📁 스킬 설치 위치 선택
@@ -392,6 +460,7 @@ cp "$SKILLS_DIR/_templates/project-params.md" "$PARAMS_PATH"
 
   📂 스킬:            {$SKILL_COUNT}개 → {$SKILLS_DIR}
   🤖 OMC:             {$OMC_STATUS}
+  🎭 Playwright MCP:  {$PLAYWRIGHT_STATUS}
   ⚙️  프로젝트 설정:   {$PARAMS_PATH 또는 "건너뜀"}
 
   [사용자 선택]
