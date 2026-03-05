@@ -15,6 +15,25 @@ argument-hint: 'Usage: /vanalyze [worklog-folder-or-worklog.md] [file-or-module-
 
 기존 코드를 깊이 이해하고 계획된 수정사항의 영향을 평가하는 코드 분석 워크플로우를 실행한다. 출력 결과는 `/vplan`의 입력 컨텍스트로 사용된다.
 
+## 정규 단계 테이블 (SSOT)
+
+아래 표가 vanalyze의 단계 전이 단일 진실 기준이다.
+
+| 현재 단계 | 완료 조건 | 다음 단계 | 주요 출력 |
+|-----------|-----------|----------|----------|
+| 사전 준비 | 입력/컨텍스트/TEST_COMMAND 확정 | Phase 0 또는 Phase 1 | 준비 컨텍스트 |
+| Phase 0 (버그 재현) | 버그 재현 결과 확정 | Phase 1 또는 종료 | 재현 테스트, 재현 결과 |
+| Phase 1 (범위 식별) | 분석 범위 확정 | Phase 2 | `SCOPE_FILES`, `SCOPE_DESCRIPTION` |
+| Phase 2 (심층 이해) | deep analysis 완료 | Phase 3 | `ARCHITECTURE_RESULT`, `BEHAVIOR_RESULT`, `TEST_COVERAGE_RESULT` |
+| Phase 3 (영향도) | impact 분석/교차검증 완료 | Phase 4 | `IMPACT_RESULT` |
+| Phase 4 (종합) | `analysis.md` 작성 완료 | Phase 5 | `ANALYSIS_FILE` |
+| Phase 5 (검토/인계) | 사용자 검토 + 워크로그 업데이트 완료 | 종료 | 분석 요약, 다음 단계 안내 |
+
+전이 예외:
+- 버그 리포트가 아니면 Phase 0을 건너뛰고 Phase 1로 시작한다.
+- 버그 리포트인데 재현 결과가 모두 PASS이면 사용자 결정(재검토/이미 수정됨/재현 없이 분석)에 따른다.
+- 버그 리포트 판별 불가 + `ORCHESTRATION_MODE=auto`이면 질문 없이 Phase 0을 건너뛰고 Phase 1로 시작한다.
+
 ## 대상 결정
 
 - `_shared/resolve-worklog-target.md`를 로드하고 해당 절차를 따른다.
@@ -40,7 +59,9 @@ argument-hint: 'Usage: /vanalyze [worklog-folder-or-worklog.md] [file-or-module-
 이 Phase는 버그 리포트 워크로그에서만 실행한다. 버그 여부 판별:
 1. 워크로그 frontmatter에 `type: bug`이 있으면 → 실행
 2. `type` 필드가 없으면: Goal 섹션에서 "버그", "bug", "fix", "regression", "오류", "에러" 키워드 탐지 → 키워드 발견 시 실행
-3. 판별 불가 시 → `ORCHESTRATION_MODE=auto`면 건너뛰기, 그 외에는 사용자에게 질문: "이 워크로그는 버그 리포트인가요?"
+3. 판별 불가 시:
+   - `ORCHESTRATION_MODE=auto`면 Phase 0을 건너뛰고 Phase 1로 진행한다.
+   - 그 외에는 사용자에게 질문: "이 워크로그는 버그 리포트인가요?"
 
 버그 리포트로 판별된 경우, 분석 전에 반드시 재현 테스트를 작성하여 버그를 확인한다.
 버그 리포트가 아닌 경우, Phase 0을 건너뛰고 Phase 1로 진행한다.
@@ -311,7 +332,7 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
 **codex 워커 정리** (Phase 3 완료 직후):
 ```
 mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({
-  "teamName": "{WORKLOG_SLUG}-analyze-impact"
+  "job_id": "{jobId}"
 })
 ```
 
@@ -370,12 +391,19 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({
 
 ## Phase 5: 사용자 검토
 
-1. 분석 요약을 사용자에게 제시
-2. `ANALYSIS_FILE`에 전체 분석 내용을 작성
-3. `_shared/update-worklog.md`를 통해 워크로그 업데이트:
+1. `ANALYSIS_FILE`에 전체 분석 내용을 작성
+2. `_shared/update-worklog.md`를 통해 워크로그 업데이트:
    - Links 섹션에 분석 파일 링크 추가
    - 분석 결과를 반영하여 다음 작업 업데이트
    - `timeline_entry`: 분석 세션 요약 + 근거
+3. 분석 요약을 사용자에게 제시
+
+### 전이 트랜잭션 순서 (고정)
+
+분석 완료 시 아래 순서를 고정한다:
+1. `analysis.md` 작성/갱신
+2. 워크로그 업데이트 (`_shared/update-worklog.md`)
+3. 사용자에게 결과 요약 출력
 
 ## 출력
 
@@ -385,5 +413,10 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({
 - 심각도별 식별된 위험 건수
 - `ORCHESTRATED=true`인 경우: 여기서 종료. vwork가 다음 phase 전이를 관리한다.
 - 그 외: "분석이 완료되었습니다. `/vplan {WORKLOG_DIR}` 로 변경 계획을 수립하세요."
+
+## 전체 워크플로우 절대 규칙
+
+- **사용자 명시 요청 없이는 단계 생략/워크플로우 변경 금지.** vanalyze가 임의로 단계를 건너뛰거나 순서를 재배치하지 않는다.
+- **정규 단계 테이블(SSOT)을 따른다.** 예외 전이는 명시된 조건에서만 허용한다.
 
 이제 실행하라.

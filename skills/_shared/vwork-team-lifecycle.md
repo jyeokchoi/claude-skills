@@ -26,13 +26,13 @@ SKILL.md의 "정규 Phase-팀원 매핑" 테이블이 단일 진실 기준이다
 `_shared/cli-runtime-check.md`와 `_shared/agent-routing.md`의 "스킬별 CLI 라우팅 매핑"을 참조하여 CLI 워커가 선택된 경우:
 - Claude Task() 대신 `omc_run_team_start`로 CLI 워커 스폰 (아래 CLI 워커 스폰 템플릿 참조)
 - `spawned_agents`에 순수 이름만 기록 (예: `"implementer"`, `"tester"`)
-- 별도 `cli_workers` 맵에 CLI 유형을 기록: `{"implementer": "codex", "tester": "gemini"}`
+- 별도 `cli_workers` 맵에 메타데이터를 기록: `{"implementer": {"cli_type": "codex", "team_name": "...", "job_id": "..."}, "tester": {"cli_type": "gemini", "team_name": "...", "job_id": "..."}}`
 - `state_write(mode="vwork")` 시 `spawned_agents`와 `cli_workers` 모두 갱신
 
 **base name 매칭 규칙:**
 - `spawned_agents`에서 역할을 식별할 때는 항목 자체가 역할명이다 (접미사 없음).
 - `cli_workers` 맵에서 해당 역할명이 키로 존재하면 CLI 워커 팀원으로 판단한다.
-- 예: `spawned_agents = ["implementer"]`, `cli_workers = {"implementer": "codex"}` → `implementer`는 CLI 워커
+- 예: `spawned_agents = ["implementer"]`, `cli_workers = {"implementer": {"cli_type": "codex", "team_name": "wl-impl", "job_id": "job-123"}}` → `implementer`는 CLI 워커
 
 피드백 루프 대비 스폰:
 - VERIFY phase에서 `implementer`가 팀에 없으면 추가 스폰 (VERIFY→IMPL 대비).
@@ -68,9 +68,11 @@ SendMessage(type="shutdown_request", recipient="{팀원}", content="Phase 완료
 **CLI 워커 팀원** (`cli_workers[{팀원명}]`이 존재하는 경우):
 ```
 ToolSearch(query="+omc_run_team_cleanup")
-mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"teamName": "{team_name}"})
+mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"job_id": "{cli_workers[{팀원명}].job_id}"})
 ```
-완료 후 `spawned_agents`에서 제거, `cli_workers`에서 해당 키 제거.
+호출 성공 후 `spawned_agents`에서 제거, `cli_workers`에서 해당 키 제거.
+
+참고: cleanup은 내부적으로 비동기 정리를 수행할 수 있으나, 호출이 성공하면 리소스 해제가 진행 중인 상태로 간주한다.
 
 정리 완료 후 상태 보존 규칙에 따라 `state_write(mode="vwork")`로 `spawned_agents`와 `cli_workers` 모두 갱신.
 
@@ -102,7 +104,7 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
 
 스폰 후:
 - `spawned_agents`에 순수 이름 추가 (예: `"implementer"`)
-- `cli_workers` 맵에 CLI 유형 기록 (예: `{"implementer": "codex"}`)
+- `cli_workers` 맵에 메타데이터 기록 (예: `{"implementer": {"cli_type": "codex", "team_name": "{WORKLOG_SLUG}-{phase-slug}", "job_id": "{jobId}"}}`)
 - `state_write(mode="vwork")`로 양쪽 모두 갱신
 
 ## Phase 전이 시 Lifecycle 실행

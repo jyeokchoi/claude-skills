@@ -185,7 +185,7 @@ b. `worktree_path` = 미설정 (worklog는 현재 저장소에 위치)
 ### 8. 초기 내용 채우기
 
 - `task_brief`가 있는 경우: Dashboard 상단의 Goal 섹션을 task brief로 설정
-- 초기 Next actions 설정 (Dashboard 내부): `- [ ] /vwork 로 워크플로우 시작`
+- 초기 Next actions 설정 (Dashboard 내부): `- [ ] /vwork 또는 /vauto 로 워크플로우 시작`
 
 ### 9. 요약 출력
 
@@ -199,6 +199,6 @@ Worklog created:
   - Phase: ANALYZE
 ```
 
-출력: "`/vwork {worklog_path}` 로 워크플로우를 시작하세요."
+출력: "`/vwork {worklog_path}` (단계별) 또는 `/vauto {worklog_path}` (자동) 로 워크플로우를 시작하세요."
 
 이제 실행하라.

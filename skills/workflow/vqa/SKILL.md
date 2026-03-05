@@ -17,6 +17,25 @@ argument-hint: 'Usage: /vqa [worklog-folder-or-worklog.md]'
 
 병렬 서브에이전트로 구현 정확성을 검증하고 사용자 검토를 위한 보고서를 생성하는 종합 QA 검증 워크플로우를 실행한다.
 
+## 정규 단계 테이블 (SSOT)
+
+아래 표가 vqa의 단계 전이 단일 진실 기준이다.
+
+| 현재 단계 | 완료 조건 | 다음 단계 | 주요 출력 |
+|-----------|-----------|----------|----------|
+| 대상 결정/컨텍스트 | PLAN/REPORT/QA_CONTEXT 확정 | Phase 1 | 검증 컨텍스트 |
+| Phase 1 (수집) | worklog/plan/diff/test 결과 수집 완료 | Phase 2 | `QA_CONTEXT` |
+| Phase 2 (병렬 리서치) | 에이전트 결과 수집 완료 | Phase 3 | Agent 1~4(+5) 결과 |
+| Phase 3 (보고서 합성) | `report.md` 작성 완료 | Phase 3.5 | QA 보고서 |
+| Phase 3.5 (route 감지) | verdict 블록 생성 완료 | Phase 4 | `route` |
+| Phase 4 (검토/루프) | action handler 적용 완료 | 종료 또는 다음 액션 | 인계/수정 지시 |
+
+route 우선순위 계약:
+- `all_pass`: 모든 차원 PASS
+- `test_gaps`: test 차원 NEEDS_WORK, intent/spec/architecture 차원은 모두 PASS
+- `code_issues`: intent/spec/architecture 차원 NEEDS_WORK, test 차원 PASS
+- `code_issues_and_test_gaps`: test 차원 NEEDS_WORK + intent/spec/architecture 차원 NEEDS_WORK
+
 ## 대상 결정
 
 - `_shared/resolve-worklog-target.md`를 로드하고 해당 절차를 따른다 (`required_files: ["plan.md"]`).
@@ -28,7 +47,7 @@ argument-hint: 'Usage: /vqa [worklog-folder-or-worklog.md]'
 ## 오케스트레이션 컨텍스트
 
 - `_shared/orchestration-context.md`를 로드하고 **서브 스킬 — 읽기** 프로토콜을 따른다.
-- `ORCHESTRATED=true`인 경우: Phase 4에서 자동 분류 결과에 따라 자동 진행 (유저 질문 생략).
+- `ORCHESTRATED=true`인 경우: Phase 4에서 자동 분류 결과에 따라 action handler만 자동 선택/적용하고 종료한다 (유저 질문 생략, 서브 스킬 체이닝 없음).
 
 **CLI 가용성 확인:** `_shared/orchestration-context.md`의 **CLI 가용성 결정** 절차에 따라 `CODEX_AVAILABLE`을 설정한다.
 
@@ -55,7 +74,7 @@ argument-hint: 'Usage: /vqa [worklog-folder-or-worklog.md]'
 ### Agent 1: Intent Verification (워크로그 기반 의도 검증)
 
 ```
-Task(subagent_type="critic", model="sonnet",
+Task(subagent_type="oh-my-claudecode:critic", model="sonnet",
      prompt="
 Read-only 검증 에이전트. Read, Glob, Grep으로 코드를 직접 탐색할 수 있다. Write, Edit, Bash는 사용하지 않는다.
 
@@ -90,7 +109,7 @@ Use Read tool to examine changed files in detail beyond the diff.
 ### Agent 2: Spec Verification (플랜 기반 동작/스펙 검증)
 
 ```
-Task(subagent_type="code-reviewer", model="sonnet",
+Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet",
      prompt="
 Read-only 검증 에이전트. Read, Glob, Grep으로 코드를 직접 탐색할 수 있다. Write, Edit, Bash는 사용하지 않는다.
 
@@ -126,7 +145,7 @@ Use Read tool to examine implementation files referenced in the diff.
 ### Agent 3: Test Verification (테스트 커버리지/올바름 검증)
 
 ```
-Task(subagent_type="analyst", model="sonnet",
+Task(subagent_type="oh-my-claudecode:analyst", model="sonnet",
      prompt="
 Read-only 검증 에이전트. Read, Glob, Grep으로 코드를 직접 탐색할 수 있다. Write, Edit, Bash는 사용하지 않는다.
 
@@ -171,7 +190,7 @@ Use Read tool to examine test files and implementation files in detail.
 ### Agent 4: Architecture Verification (코드 아키텍처/정합성 검증)
 
 ```
-Task(subagent_type="architect", model="opus",
+Task(subagent_type="oh-my-claudecode:architect", model="opus",
      prompt="
 Read-only 검증 에이전트. Read, Glob, Grep으로 코드를 직접 탐색할 수 있다. Write, Edit, Bash는 사용하지 않는다.
 
@@ -264,7 +283,7 @@ Focus on issues that might be missed by individual dimension-focused reviewers.
 })
 mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
 mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup(
-  {"teamName": "{WORKLOG_SLUG}-qa-codex-xverify"}
+  {"job_id": "{jobId}"}
 )
 ```
 
@@ -327,8 +346,9 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup(
 
 사용자에게 제시하기 전에 에이전트 평결을 분석하여 자동 분류한다 (Codex 결과 포함, SKIPPED이면 제외):
 
-- **test_gaps**: Test Verification (Agent 3) 평결이 NEEDS_WORK, 또는 Codex (Agent 5)가 test 차원에서 NEEDS_WORK → 누락 테스트, 약한 단언, 커버리지 갭
-- **code_issues**: Intent (Agent 1) 또는 Spec (Agent 2) 또는 Architecture (Agent 4) 평결이 NEEDS_WORK, 또는 Codex (Agent 5)가 intent/spec/architecture 차원에서 NEEDS_WORK → 구현 문제
+- **code_issues_and_test_gaps**: test 차원 NEEDS_WORK **그리고** intent/spec/architecture 차원도 NEEDS_WORK
+- **test_gaps**: test 차원 NEEDS_WORK **그리고** intent/spec/architecture 차원은 모두 PASS
+- **code_issues**: test 차원 PASS **그리고** intent/spec/architecture 차원 중 하나 이상 NEEDS_WORK
 - **all_pass**: 모든 에이전트 평결이 PASS (Codex 포함, SKIPPED인 경우 4개만)
 
 이 분류에 따라 Phase 4에서 제시되는 옵션이 결정된다.
@@ -347,6 +367,11 @@ route: {all_pass|test_gaps|code_issues|code_issues_and_test_gaps}
 <!-- QA:VERDICT:END -->
 ```
 
+verdict 계약(엄격):
+- `route`는 정확히 1개여야 한다.
+- 허용 값은 위 4개(`all_pass`, `test_gaps`, `code_issues`, `code_issues_and_test_gaps`)만 가능하다.
+- 누락/다중/미지 값이면: action handler 실행 금지, 워크로그에 에러 기록 후 사용자에게 질문한다.
+
 ## Phase 4: 사용자 검토 및 피드백 루프
 
 1. 사용자에게 보고서 요약 제시
@@ -354,11 +379,11 @@ route: {all_pass|test_gaps|code_issues|code_issues_and_test_gaps}
 
 **`ORCHESTRATED=true`이고 `ORCHESTRATION_MODE=auto`인 경우:**
 
-유저 질문을 생략하고 자동 분류 결과에 따라 자동 진행한다:
+유저 질문을 생략하고 자동 분류 결과에 따라 **action handler만 자동 선택/적용**한다 (서브 스킬 체이닝 없이 여기서 종료):
 - **all_pass** → "통과 (Pass)" action handler 실행
 - **test_gaps** → "테스트 작성 (/vtest)" action handler 실행
-- **code_issues only** → "코드 수정 (/vimpl)" action handler 실행
-- **test_gaps + code_issues** → "코드 수정 + 테스트" action handler 실행
+- **code_issues** → "코드 수정 (/vimpl)" action handler 실행
+- **code_issues_and_test_gaps** → "코드 수정 + 테스트 (/vimpl → /vtest)" action handler 실행
 
 **그 외:**
 
@@ -377,7 +402,7 @@ AskUserQuestion:
       description: "특정 영역을 더 깊이 검증합니다."
 ```
 
-### test_gaps가 감지된 경우 (code_issues 동반 여부와 관계없이):
+### test_gaps가 감지된 경우 (code_issues 없음):
 
 ```
 AskUserQuestion:
@@ -463,6 +488,8 @@ AskUserQuestion:
 - **4개 차원 모두 검증.** 검증 차원을 건너뛰지 않는다. Codex 크로스 검증은 `CODEX_AVAILABLE=true` 시 필수.
 - **보고서는 항상 작성.** 모두 PASS여도 감사 추적을 위해 보고서를 작성한다.
 - **피드백은 플랜으로.** 직접 수정하지 않고 plan.md → vimpl 경로를 통한다.
+- **사용자 명시 요청 없이는 단계 생략/워크플로우 변경 금지.** vqa가 임의로 phase를 건너뛰거나 순서를 재배치하지 않는다.
+- **정규 단계 테이블(SSOT)을 따른다.** route 우선순위 계약 외 임의 분기/전이는 허용하지 않는다.
 - **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조
 
 이제 실행하라.

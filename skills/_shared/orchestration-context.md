@@ -19,6 +19,13 @@ state_write(mode="vwork", data={
   "task_type": "new-feature" | "modification",
   "feedback_iterations": {number},
   "spawned_agents": ["{agent_name}", ...],
+  "cli_workers": {
+    "{role}": {
+      "cli_type": "codex" | "gemini",
+      "team_name": "{cli team name}",
+      "job_id": "{omc job id}"
+    }
+  },
   "team_name": "{team_name}",
   "codex_available": true | false,
   "gemini_available": true | false
@@ -46,7 +53,7 @@ GEMINI_AVAILABLE = ORCHESTRATED ? (vwork_state.gemini_available ?? false) : fals
 PROJECT_TYPE = ORCHESTRATED ? (vwork_state.project_type ?? null) : null
 ```
 
-> **`CLI_TYPE` 수신 경로**: vwork는 per-phase CLI 라우팅 테이블에 따라 phase별 `cli_type`을 결정한다. `ORCHESTRATED=true`인 경우 `CLI_TYPE`은 vwork가 서브 스킬을 호출하는 **SendMessage content**에 포함되어 전달된다 (state에 기록되지 않음). 서브 스킬은 수신한 메시지에서 `cli_type` 값을 추출하여 사용한다.
+> **`CLI_TYPE` 수신 경로**: vwork는 per-phase CLI 라우팅 테이블에 따라 phase별 `cli_type`을 결정한다 (ANALYZE/PLAN/IMPL/TEST/VERIFY). `ORCHESTRATED=true`인 경우 `CLI_TYPE`은 vwork가 서브 스킬을 호출하는 **SendMessage content**에 포함되어 전달된다 (state에 기록되지 않음). 서브 스킬은 수신한 메시지에서 `cli_type` 값을 추출하여 사용한다.
 
 **CLI 가용성 결정 (서브 스킬 공통):**
 

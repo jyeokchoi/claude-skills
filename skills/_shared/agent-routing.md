@@ -68,8 +68,8 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
   "cwd": "{cwd}"
 })
 # → mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
-# 정리: mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"teamName": "{context-slug}"})
-# 상태: mcp__plugin_oh-my-claudecode_team__omc_run_team_status({"teamName": "{context-slug}"})
+# 정리: mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"job_id": "{jobId}"})
+# 상태: mcp__plugin_oh-my-claudecode_team__omc_run_team_status({"job_id": "{jobId}"})
 ```
 
 ## 스킬별 CLI 라우팅 매핑
@@ -85,7 +85,7 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
 | CLI 미가용 | claude fallback | silent fallback |
 
 **CLI 워커 상태 관리:** `cli_workers` 맵으로 관리. `spawned_agents`는 순수 이름 목록을 유지한다.
-- 형식: `cli_workers: {"implementer": "codex", "tester": "gemini"}`
+- 형식: `cli_workers: {"implementer": {"cli_type": "codex", "team_name": "...", "job_id": "..."}, "tester": {"cli_type": "gemini", "team_name": "...", "job_id": "..."}}`
 - `spawned_agents`에 접미사를 붙이지 않는다.
 
 ## OMC 상태/스킬 매핑

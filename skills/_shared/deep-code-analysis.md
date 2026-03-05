@@ -54,7 +54,7 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
 
 정리 (분석 완료 후):
 ```
-mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"teamName": "{WORKLOG_SLUG}-deep-analysis"})
+mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"job_id": "{jobId}"})
 ```
 
 ## 실행

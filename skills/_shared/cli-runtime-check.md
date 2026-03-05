@@ -146,17 +146,17 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({
 
 # 4. 정리 (phase 전이 시)
 mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({
-  "teamName": "{context-slug}"
+  "job_id": "{jobId}"
 })
 
 # 5. 상태 확인 (compaction 복구 시)
 mcp__plugin_oh-my-claudecode_team__omc_run_team_status({
-  "teamName": "{context-slug}"
+  "job_id": "{jobId}"
 })
 # → returns: running / completed / failed / not_found
 ```
 
 **cli_workers 맵 기록:** CLI 워커 스폰 시 별도 `cli_workers` 맵에 기록한다. `spawned_agents`는 순수 이름 목록을 유지한다.
-- `cli_workers` 형식: `{"implementer": "codex", "tester": "gemini"}`
+- `cli_workers` 형식: `{"implementer": {"cli_type": "codex", "team_name": "...", "job_id": "..."}, "tester": {"cli_type": "gemini", "team_name": "...", "job_id": "..."}}`
 - `spawned_agents` 형식: `["implementer", "tester"]` (접미사 없음)
 - `state_write(mode="vwork")` 시 `cli_workers` 필드도 함께 갱신한다.

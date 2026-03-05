@@ -15,6 +15,25 @@ argument-hint: 'Usage: /vimpl [worklog-folder-or-worklog.md]'
 
 TDD, 코드 단순화, 병렬 검증, ralph loop 지속성을 사용하여 플랜 체크리스트를 항목별로 실행하는 구현 워크플로우를 실행한다.
 
+## 정규 단계 테이블 (SSOT)
+
+아래 표가 vimpl의 단계 전이 단일 진실 기준이다.
+
+| 현재 단계 | 완료 조건 | 다음 단계 | 주요 출력 |
+|-----------|-----------|----------|----------|
+| Step 0 (재수화) | state/plan 교차검증 완료 | 대상 결정 | 복구 컨텍스트 |
+| 대상 결정/컨텍스트 | PLAN/TEST/project_type 확정 | 모드 선택 | 실행 컨텍스트 |
+| 모드 선택 | mode/state 초기화 완료 | Ralph loop 활성화 | `state(mode=vimpl)` 초기 상태 |
+| 병렬 전략 결정 | 병렬/순차 실행 방식 확정 | 구현 루프 | 실행 전략 |
+| Step 1 | 항목 이해 완료 | Step 2 | 현재 항목 컨텍스트 |
+| Step 2 | Red 테스트 확보 | Step 3 | failing test |
+| Step 3 | Green 통과 | Step 4 | 구현 변경 |
+| Step 4 | code-simplifier + 회귀 통과 | Step 5 | 정리된 변경 |
+| Step 5 | 병렬 검증 통과 | Step 6 | 검증 결과 |
+| Step 6 | 승인 완료 | Step 7 | 승인 결과 |
+| Step 7 | 스테이징 + 체크박스/워크로그 갱신 | Step 1 또는 완료 | 진행 업데이트 |
+| 완료 | 미완료 항목 없음 + 상태 종료 | 종료 | 완료 상태 |
+
 ## 0. 상태 재수화 (compaction 복구)
 
 **가장 먼저 실행한다.** `<notepad-context>`에 `vimpl활성`이 보이거나 `state_read(mode="vimpl")`에서 `active=true`이면 compaction 재진입으로 간주한다.
@@ -207,7 +226,7 @@ project_type 결정 후 `state_write(mode="vimpl")`로 `project_type`과 `cli_ty
 
 의존성 없는 항목이 있으면 CLI 워커를 사용하여 병렬 실행한다. `ORCHESTRATED=true`이고 `cli_type`이 `codex` 또는 `gemini`인 경우, **반드시** 해당 CLI 워커를 사용하여 병렬성을 최대화한다 (Claude fallback 금지).
 
-`_shared/orchestration-context.md`의 **CLI 가용성 결정** 절차에 따라 `CODEX_AVAILABLE`, `GEMINI_AVAILABLE`, `CLI_TYPE`을 사용한다.
+`_shared/orchestration-context.md`의 **CLI 가용성 결정** 절차에 따라 `CODEX_AVAILABLE`, `GEMINI_AVAILABLE`, `cli_type`을 사용한다.
 
 - `cli_type=codex` → **반드시** 아래 omc_run_team_start(codex) 경로 실행. Claude fallback 전환 금지.
 - `cli_type=gemini` → **반드시** 아래 omc_run_team_start(gemini) 경로 실행. Claude fallback 전환 금지.
@@ -486,6 +505,15 @@ Task(subagent_type="oh-my-claudecode:quality-reviewer", model="sonnet",
 4. `state_write(mode="vimpl")`로 다음 항목 준비: `current_item_index` 진행, `current_step=1`. Notepad `item:{N+1}|step:1` 갱신.
 5. 다음 미완료 항목으로 진행
 
+### 항목 전이 트랜잭션 순서 (고정)
+
+각 항목 완료 시 아래 순서를 고정한다:
+1. 테스트/검증 통과 확인
+2. `git add` 스테이징
+3. `plan.md` 체크박스 갱신
+4. 워크로그 업데이트
+5. `state_write(mode="vimpl")` + notepad 갱신
+
 ## 완료
 
 plan.md의 모든 체크리스트 항목이 완료되면 (`- [x]`):
@@ -513,5 +541,7 @@ plan.md의 모든 체크리스트 항목이 완료되면 (`- [x]`):
 - **무거운 작업은 위임한다** — `_shared/delegation-policy.md` 참조
 - **상태를 기록한다.** 모든 Step 전이와 항목 전이 시 `state_write(mode="vimpl")`로 상태 갱신. 상태 보존 규칙 준수.
 - **plan.md가 진실 기준이다.** Compaction 복구 시 plan.md 체크박스가 state의 `current_item_index`보다 우선.
+- **사용자 명시 요청 없이는 단계 생략/워크플로우 변경 금지.** vimpl이 임의로 Step/TDD/검증/승인 순서를 건너뛰거나 재배치하지 않는다.
+- **정규 단계 테이블(SSOT)을 따른다.** 명시된 예외(재수화/병렬 전략/오케스트레이션 분기) 외 전이는 허용하지 않는다.
 
 이제 실행하라.

@@ -483,6 +483,7 @@ cp "$SKILLS_DIR/_templates/project-params.md" "$PARAMS_PATH"
 
 🚀 추천 시작점:
   /worklog-start     — 새 작업 시작
+  /vauto             — 자동 루프 실행
   /vplan             — 구조화된 플래닝
   /vimpl             — TDD 기반 구현
   /exhaustive-review — 3인 페르소나 토론 리뷰
