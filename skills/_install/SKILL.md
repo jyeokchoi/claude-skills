@@ -1,7 +1,7 @@
 ---
 name: _install
 description: claude-skills 설치 + 프로젝트 설정
-version: 2
+version: 3
 omc-base-version: "4.7.6"
 ---
 
@@ -35,7 +35,7 @@ curl -sf "https://raw.githubusercontent.com/jyeokchoi/claude-skills/main/skills/
 
 ### 0-2. 로컬 버전과 비교
 
-이 파일의 frontmatter에서 `version: 2`를 읽는다 → `$LOCAL_VERSION = 2`.
+이 파일의 frontmatter에서 `version: 3`를 읽는다 → `$LOCAL_VERSION = 3`.
 
 - `$REMOTE_VERSION == "unknown"` → Step 1로 진행 (오프라인 설치 허용)
 - `$REMOTE_VERSION == $LOCAL_VERSION` → 최신 버전. Step 1로 진행.
