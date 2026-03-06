@@ -1,3 +1,9 @@
+---
+name: lint-format
+description: 린트 및 포맷 공통 절차. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Bash(yarn:*), Bash(npm:*), Bash(npx:*), Bash(git:*), Bash(cd:*), Bash(grep:*), Read, Edit, AskUserQuestion
+---
+
 # 린트 & 포맷 (공통 절차)
 
 ## 입력

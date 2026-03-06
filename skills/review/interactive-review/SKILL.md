@@ -6,6 +6,11 @@ argument-hint: 'Usage: /interactive-review [--reset] [base-branch]'
 
 # 인터랙티브 코드 리뷰
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 개요
 
 `explain-code`로 리뷰 순서를 결정하고, state 파일로 진행 상황을 추적하며 파일 하나씩 인터랙티브하게 리뷰한다. 중단 후 재개하면 마지막으로 리뷰한 파일 다음부터 이어서 진행한다.

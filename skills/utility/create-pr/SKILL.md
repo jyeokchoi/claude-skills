@@ -1,3 +1,9 @@
+---
+name: create-pr
+description: PR 생성 공통 절차. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Bash(git:*), Bash(gh:*), Read, AskUserQuestion, mcp__plugin_atlassian_atlassian__*
+---
+
 # PR 생성 (공통 절차)
 
 ## 입력

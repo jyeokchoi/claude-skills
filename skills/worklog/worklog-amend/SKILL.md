@@ -19,6 +19,11 @@ allowed-tools: Bash(mkdir:*), Bash(cp:*), Bash(mv:*), Bash(rm:*), Bash(date:*), 
 | `jira_base_url` | (없음) | Jira 이슈 URL 접두사 |
 | `base_branch` | auto-detect | worktree base 브랜치 |
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 입력값
 
 - Raw arguments: $ARGUMENTS
@@ -63,9 +68,8 @@ AskUserQuestion: "Jira 이슈를 생성하시겠습니까?" (예/아니오)
 
 "예"인 경우:
 
-- `_shared/create-jira-issue.md`가 존재하는 경우:
-  > **Shared**: `_shared/create-jira-issue.md` 절차를 따른다.
-- 없는 경우: 사용자에게 Jira 이슈 제목과 설명을 요청하고 `mcp__plugin_atlassian_atlassian__` 도구로 직접 생성.
+- `create-jira-issue` 스킬의 절차를 따른다.
+- fallback (스킬 미설치 시): 사용자에게 Jira 이슈 제목과 설명을 요청하고 `mcp__plugin_atlassian_atlassian__` 도구로 직접 생성.
 
 **branch (비어있는 경우):**
 - 프로젝트 설정의 `branch_pattern` 사용 (기본: `feature/{task_name}`)
@@ -95,15 +99,13 @@ AskUserQuestion: "워크로그 수정이 완료되었습니다. 새 워크트리
 ### 6. worktree 생성 및 이전 (해당하는 경우)
 
 `base_branch` 결정:
-- `_shared/resolve-base-branch.md`가 존재하는 경우:
-  > **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
-- 없는 경우: 프로젝트 설정의 `base_branch` → 자동 탐지 → 사용자 질문
+- `resolve-base-branch` 스킬의 절차를 따른다.
+- fallback (스킬 미설치 시): 프로젝트 설정의 `base_branch` → 자동 탐지 → 사용자 질문
 
-`_shared/create-worktree.md`가 존재하는 경우:
-> **Shared**: `_shared/create-worktree.md` 절차를 따른다.
+`create-worktree` 스킬의 절차를 따른다.
 > - `task_name` = 브랜치 이름 단축형 (`branch_pattern`에 따라 접두사 제거), `branch_name` = worklog frontmatter의 branch, `base_ref` = `{base_branch}`, `create_branch` = `true`
 
-없는 경우 (인라인 worktree 생성):
+fallback (스킬 미설치 시):
 ```bash
 # worktree 경로 결정: 저장소 루트와 형제 디렉토리
 repo_root=$(git rev-parse --show-toplevel)
@@ -143,9 +145,8 @@ Worklog amended:
 
 worktree가 생성된 경우:
 
-- `_shared/print-worktree-summary.md`가 존재하는 경우:
-  > **Shared**: `_shared/print-worktree-summary.md` 절차를 따른다.
-- 없으면 인라인 출력:
+- `print-worktree-summary` 스킬의 절차를 따른다.
+- fallback (스킬 미설치 시):
   ```
   Worktree created:
     - Path: {worktree_path}

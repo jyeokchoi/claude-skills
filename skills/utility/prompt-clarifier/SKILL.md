@@ -6,6 +6,11 @@ argument-hint: 'Usage: /prompt-clarifier <요청>'
 
 # Prompt Clarifier
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 사용자의 요청이 모호하거나 구체화가 필요할 때, 코드베이스 탐색과 명확화 질문을 통해 **구체적이고 실행 가능한 요청**으로 변환하는 스킬.
 
 이 스킬은 **명확화만 수행**한다. 작업 실행은 사용자가 출력된 구체화 요청을 `/vwork`, `/vimpl` 등 적절한 스킬에 전달하여 수행한다.

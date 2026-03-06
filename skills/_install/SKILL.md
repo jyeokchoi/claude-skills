@@ -1,6 +1,8 @@
 ---
 name: _install
 description: claude-skills 설치 + 프로젝트 설정
+version: 2
+omc-base-version: "4.7.6"
 ---
 
 # 🛠️ claude-skills 설치
@@ -14,6 +16,46 @@ description: claude-skills 설치 + 프로젝트 설정
 3. **독립적인 작업은 병렬로 실행한다.** 탐지 명령, 파일 읽기 등은 동시에 수행한다.
 4. **실패 시 재시도 → 대안 → 건너뛰기 순으로 처리한다.** 사용자에게 어떻게 할지 AskUserQuestion으로 묻는다.
 5. **Step 7(결과 보고) 전까지 사용자에게 텍스트 출력을 하지 않는다.** 모든 커뮤니케이션은 AskUserQuestion으로만 한다.
+
+---
+
+## Step 0: 🔄 자체 업데이트 확인
+
+설치를 시작하기 전에, 이 installer가 최신 버전인지 확인한다.
+
+### 0-1. 원격 버전 확인
+
+```bash
+curl -sf "https://raw.githubusercontent.com/jyeokchoi/claude-skills/main/skills/_install/SKILL.md" | head -5 | grep -oP 'version:\s*\K\d+'
+```
+
+- 결과를 `$REMOTE_VERSION`에 저장한다.
+- 실패(네트워크 오류, timeout 등) 시: `$REMOTE_VERSION = "unknown"` → Step 0 건너뛰고 Step 1로 진행.
+
+### 0-2. 로컬 버전과 비교
+
+이 파일의 frontmatter에서 `version: 2`를 읽는다 → `$LOCAL_VERSION = 2`.
+
+- `$REMOTE_VERSION == "unknown"` → Step 1로 진행 (오프라인 설치 허용)
+- `$REMOTE_VERSION == $LOCAL_VERSION` → 최신 버전. Step 1로 진행.
+- `$REMOTE_VERSION > $LOCAL_VERSION` → 업데이트 필요. Step 0-3으로.
+
+### 0-3. 최신 installer 다운로드 및 재실행
+
+```bash
+# 최신 _install/SKILL.md 다운로드
+SKILLS_DIR="${SKILLS_DIR:-$HOME/.claude/skills}"
+mkdir -p "$SKILLS_DIR/_install"
+curl -sf "https://raw.githubusercontent.com/jyeokchoi/claude-skills/main/skills/_install/SKILL.md" \
+  -o "$SKILLS_DIR/_install/SKILL.md"
+```
+
+다운로드 성공 시:
+1. 새로 다운로드한 `$SKILLS_DIR/_install/SKILL.md`를 `Read`로 읽는다.
+2. **현재 실행을 중단**하고, 읽은 새 SKILL.md의 내용을 **Step 1부터** 따라 실행한다.
+   - Step 0은 다시 실행하지 않는다 (무한 루프 방지).
+
+다운로드 실패 시: 현재 버전으로 계속 진행한다 (Step 1로).
 
 ---
 
@@ -506,13 +548,9 @@ https://github.com/jyeokchoi/claude-skills#claude의-조언
 
 → 즉시 Step 9 실행.
 
-## Step 9: 🧹 정리 안내
+## Step 9: 🔄 OMC 동기화 안내
 
-설치가 완료되었으므로 `_install` 스킬은 더 이상 필요하지 않다. 사용자에게 안내한다:
-
-> `_install` 스킬은 설치 전용이라 더 이상 필요하지 않습니다. 원하시면 삭제하세요:
-> ```
-> rm -rf {$SKILLS_DIR}/_install
-> ```
+> `_install` 스킬은 OMC 베이스 버전(`omc-base-version`)을 추적합니다. 삭제하지 마세요.
+> OMC가 업데이트되면 `/sync-omc`로 스킬 호환성을 점검할 수 있습니다.
 
 이제 실행하라.

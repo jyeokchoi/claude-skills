@@ -1,3 +1,9 @@
+---
+name: create-worktree
+description: Git worktree 생성 공통 절차. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Bash(git:*), Bash(cd:*), Bash(yarn:*), Bash(npm:*), Bash(ls:*), Read, AskUserQuestion
+---
+
 # Git Worktree 생성 (공통 절차)
 
 ## 입력

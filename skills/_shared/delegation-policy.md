@@ -1,4 +1,5 @@
 # 위임 정책
+<!-- 경로 규칙: `_shared/X` = 같은 디렉토리의 X | `_templates/X` = 형제 `_templates/` 디렉토리의 X -->
 
 메인 에이전트의 컨텍스트 윈도우를 보호하기 위한 작업 위임 규칙.
 
@@ -76,14 +77,14 @@ result3 = Task(test-engineer, ...)     # 대기
 | Claude (기본) | opus | Task() | 매니징, 설계, 리뷰, 비판 | 항상 사용 가능 |
 | Claude (기본) | sonnet | Task() | 구현, 디버깅, 검증 | 항상 사용 가능 |
 | Claude (기본) | haiku | Task() | 탐색, 가벼운 조회 | 항상 사용 가능 |
-| omc-teams (선호) | codex | `mcp__plugin_oh-my-claudecode_team__omc_run_team_start` | 상세 디버깅, 검증, 테스트 | CLI 설치 시 우선 사용 |
-| omc-teams (선호) | gemini | `mcp__plugin_oh-my-claudecode_team__omc_run_team_start` | 프론트엔드 코드, UI/UX | CLI 설치 시 우선 사용 |
+| omc-teams MCP (선호) | codex | `mcp__team__omc_run_team_start(count=1, provider="codex", task="...")` | 상세 디버깅, 검증, 테스트 | CLI 설치 시 우선 사용 |
+| omc-teams MCP (선호) | gemini | `mcp__team__omc_run_team_start(count=1, provider="gemini", task="...")` | 프론트엔드 코드, UI/UX | CLI 설치 시 우선 사용 |
 
 ### 런타임 선택 기준
 
 - **Claude (기본)**: 모든 역할에 사용 가능. 스킬 오케스트레이션과 긴밀한 연동이 필요한 작업, 또는 외부 CLI가 없는 환경에서 사용
-- **omc-teams/codex (선호)**: codex CLI가 설치된 경우, 깊은 분석·꼼꼼한 검증·테스트 전략 수립처럼 정밀성이 중요한 작업에 우선 사용
-- **omc-teams/gemini (선호)**: gemini CLI가 설치된 경우, 프론트엔드 구현·UI 컴포넌트·시각적 설계처럼 프론트엔드 전문성이 필요한 작업에 우선 사용
+- **omc-teams MCP/codex (선호)**: codex CLI가 설치된 경우, 깊은 분석·꼼꼼한 검증·테스트 전략 수립처럼 정밀성이 중요한 작업에 우선 사용
+- **omc-teams MCP/gemini (선호)**: gemini CLI가 설치된 경우, 프론트엔드 구현·UI 컴포넌트·시각적 설계처럼 프론트엔드 전문성이 필요한 작업에 우선 사용
 
 ### Fallback
 
@@ -105,4 +106,4 @@ result3 = Task(test-engineer, ...)     # 대기
 2. **위임 시 `_shared/agent-routing.md`를 참조한다** — 역할명만 사용하고, 런타임/대상을 직접 하드코딩하지 않는다
 3. **독립 작업은 병렬로 호출한다** — 순차 실행으로 시간 낭비하지 않는다
 4. **결과만 메인에 가져온다** — 서브에이전트의 중간 과정은 메인에 불필요
-5. **런타임을 확인한다** — 외부 CLI(codex, gemini)가 설치되어 있고 작업이 선호 대상이면 `omc_run_team_start`를 우선 사용한다. CLI가 없으면 Claude `Task()`로 대체한다
+5. **런타임을 확인한다** — 외부 CLI(codex, gemini)가 설치되어 있고 작업이 선호 대상이면 `omc-teams MCP 도구를 우선 사용한다`. CLI가 없으면 Claude `Task()`로 대체한다

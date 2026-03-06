@@ -1,3 +1,9 @@
+---
+name: create-jira-issue
+description: Jira 이슈 생성 공통 절차. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Read, AskUserQuestion, mcp__plugin_atlassian_atlassian__*
+---
+
 # Jira 이슈 생성 (공통 절차)
 
 ## 입력

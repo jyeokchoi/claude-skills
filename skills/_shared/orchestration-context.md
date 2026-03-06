@@ -1,4 +1,5 @@
 # 오케스트레이션 컨텍스트 (공통 절차)
+<!-- 경로 규칙: `_shared/X` = 같은 디렉토리의 X | `_templates/X` = 형제 `_templates/` 디렉토리의 X -->
 
 vwork가 서브 스킬을 호출할 때, 서브 스킬이 오케스트레이션 상태를 인식할 수 있도록 컨텍스트를 제공한다.
 
@@ -22,8 +23,7 @@ state_write(mode="vwork", data={
   "cli_workers": {
     "{role}": {
       "cli_type": "codex" | "gemini",
-      "team_name": "{cli team name}",
-      "job_id": "{omc job id}"
+      "team_name": "{cli team name}"
     }
   },
   "team_name": "{team_name}",

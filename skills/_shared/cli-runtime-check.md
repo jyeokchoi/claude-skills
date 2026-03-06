@@ -1,4 +1,5 @@
 # CLI 런타임 확인
+<!-- 경로 규칙: `_shared/X` = 같은 디렉토리의 X | `_templates/X` = 형제 `_templates/` 디렉토리의 X -->
 
 스킬이 외부 CLI 워커(codex/gemini)를 사용하기 전에 반드시 수행하는 표준 확인 절차.
 `_shared/agent-routing.md`의 "스킬별 CLI 라우팅 매핑" 테이블과 함께 사용한다.
@@ -33,7 +34,6 @@ which gemini 2>/dev/null && echo "GEMINI_AVAILABLE=true" || echo "GEMINI_AVAILAB
 |---|---|---|---|
 | `backend` | 구현, 테스트 분석, 코드 리뷰 | codex | `CODEX_AVAILABLE=true` |
 | `frontend` | 구현, UI/UX, 테스트 | gemini | `GEMINI_AVAILABLE=true` |
-| `fullstack` | 모든 task_type | claude fallback | v1: 전체 Claude fallback |
 | `cli` | 모든 task_type | claude Task() | CLI 미사용 |
 | `library` | 모든 task_type | claude Task() | CLI 미사용 |
 
@@ -41,7 +41,7 @@ which gemini 2>/dev/null && echo "GEMINI_AVAILABLE=true" || echo "GEMINI_AVAILAB
 
 - **기본 타임아웃:** 5분 (프로젝트별 `rules/project-params.local.md`의 `cli_timeout_minutes`로 조정 가능)
 - **타임아웃 발생 시:** 부분 결과 폐기 → claude Task() fallback으로 전환 (재시도 없음)
-- **타임아웃 감지:** `omc_run_team_wait` 반환값에서 `status=timeout` 또는 응답 없음으로 판단
+- **타임아웃 감지:** `mcp__team__omc_run_team_status(team_name="{teamName}")` 반환값에서 `status=timeout` 또는 응답 없음으로 판단
 
 ## 섹션 4: Fallback 절차
 
@@ -112,51 +112,53 @@ APPROVE or REVISE
 
 ## 섹션 6: omc-teams MCP 도구 호출 패턴
 
-```
-# 1. ToolSearch로 deferred tool 로드
-ToolSearch(query="+omc_run_team_start")
+```python
+# 1. CLI 워커 시작
+mcp__team__omc_run_team_start(count=1, provider="{codex|gemini}", task="{task description — TDD/Testing Philosophy 포함}")
+# → returns JSON: {"teamName": "...", "pid": ..., "message": "..."}
+# teamName을 기록한다.
 
-# 2. CLI 워커 시작
-mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
-  "teamName": "{context-slug}",
-  "agentTypes": ["codex"],  // 또는 ["gemini"]
-  "tasks": [{"subject": "...", "description": "{prompt — TDD/Testing Philosophy 포함}"}],
-  "cwd": "{cwd}"
-})
-# → returns { "jobId": "..." }
+# 2. 완료 대기 (타임아웃: cli_timeout_minutes, 기본 5분)
+# 폴링 방식으로 상태 확인:
+mcp__team__omc_run_team_status(team_name="{teamName}")
+# → 반환 구조 (JSON):
+# - "running" → 대기 후 재확인
+# - "completed" → 결과 추출
+# - "failed" / 팀 없음 → claude Task() fallback으로 전환
 
-# 3. 완료 대기 (타임아웃: cli_timeout_minutes, 기본 5분)
-mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({
-  "job_id": "{jobId}"
-})
-# → 반환 구조:
-# {
-#   "status": "completed" | "failed" | "timeout",
-#   "taskResults": [
-#     {
-#       "subject": "{task subject}",
-#       "summary": "{결과 요약}",
-#       "output": "{전체 출력 텍스트}"
-#     }
-#   ]
-# }
-# 파싱 패턴:
-# - result.status === "completed" → taskResults[0].output에서 결과 추출
-# - result.status === "failed" / "timeout" → claude Task() fallback으로 전환
-
-# 4. 정리 (phase 전이 시)
-mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({
-  "job_id": "{jobId}"
-})
-
-# 5. 상태 확인 (compaction 복구 시)
-mcp__plugin_oh-my-claudecode_team__omc_run_team_status({
-  "job_id": "{jobId}"
-})
-# → returns: running / completed / failed / not_found
+# 3. 정리 (phase 전이 시)
+mcp__team__omc_run_team_cleanup(job_id="{jobId}")
 ```
 
 **cli_workers 맵 기록:** CLI 워커 스폰 시 별도 `cli_workers` 맵에 기록한다. `spawned_agents`는 순수 이름 목록을 유지한다.
-- `cli_workers` 형식: `{"implementer": {"cli_type": "codex", "team_name": "...", "job_id": "..."}, "tester": {"cli_type": "gemini", "team_name": "...", "job_id": "..."}}`
+- `cli_workers` 형식: `{"implementer": {"cli_type": "codex", "team_name": "..."}, "tester": {"cli_type": "gemini", "team_name": "..."}}`
 - `spawned_agents` 형식: `["implementer", "tester"]` (접미사 없음)
 - `state_write(mode="vwork")` 시 `cli_workers` 필드도 함께 갱신한다.
+
+## 섹션 7: ask-codex / ask-gemini 스킬 호출 패턴 (읽기 전용 분석/검증)
+
+읽기 전용 분석·교차 검증·플랜 검토 등 **코드 편집이 불필요한** 단일 쿼리에는 `ask-codex` / `ask-gemini` 스킬을 사용한다. omc-teams MCP 도구 대비 tmux lifecycle 오버헤드가 없어 더 빠르다.
+
+```python
+# 단일 쿼리 실행
+Skill("oh-my-claudecode:ask-codex", "{프롬프트}")
+# → stdout: 결과 텍스트
+# → 아티팩트: .omc/artifacts/ask/ 에 자동 저장
+
+Skill("oh-my-claudecode:ask-gemini", "{프롬프트}")
+```
+
+**타임아웃:** 섹션 3과 동일 (기본 5분).
+
+**Fallback:** 스킬 실패 시 (exit code ≠ 0, stdout 비어있음, 파싱 실패):
+1. 로그 메시지: `[CLI ask fallback] 이유: {reason} → claude Task({역할}, {model})으로 전환`
+2. 스킬이 내부적으로 Claude `Task()` fallback으로 재실행 (라운드 카운트 소진 않음)
+3. Silent fallback (사용자 알림 없음)
+
+**omc-teams MCP 도구와의 선택 기준:**
+
+| 조건 | 사용 도구 |
+|------|-----------|
+| 코드 편집 없음 (분석, 검증, 리뷰, 플랜 생성) | `ask-codex` / `ask-gemini` 스킬 |
+| 코드 편집 필요 (구현, 테스트 작성) | omc-teams MCP 도구 (섹션 6) |
+| 복수 태스크를 하나의 세션에서 처리 | omc-teams MCP 도구 (섹션 6) |

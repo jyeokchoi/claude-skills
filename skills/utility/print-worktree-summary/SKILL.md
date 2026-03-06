@@ -1,3 +1,9 @@
+---
+name: print-worktree-summary
+description: 워크트리 설정 완료 후 요약 출력. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Bash(echo:*), Bash(pbcopy:*)
+---
+
 # 워크트리 요약 출력 (공통 절차)
 
 ## 입력

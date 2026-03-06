@@ -1,4 +1,5 @@
 # 스킬 파일 스키마
+<!-- 경로 규칙: `_shared/X` = 같은 디렉토리의 X | `_templates/X` = 형제 `_templates/` 디렉토리의 X -->
 
 스킬 정의, 네이밍, 구조에 관한 규칙.
 
@@ -150,8 +151,8 @@ SKILL.md 본문은 다음 구조를 따른다.
 
 ### 3. git 워크트리 생성
 
-`create-worktree` 공통 절차 참조
-(_shared/create-worktree.md)
+`create-worktree` 스킬 참조
+(create-worktree 스킬)
 
 ### 4. 에이전트 부트스트랩
 
@@ -164,7 +165,7 @@ SKILL.md 본문은 다음 구조를 따른다.
 스킬이 공통 절차를 사용할 때, 절차 파일의 이름과 링크를 명시.
 
 ```markdown
-**참조:** _shared/create-worktree.md
+**참조:** create-worktree 스킬
 ```
 
 ### 6. 출력 (Output)
@@ -227,18 +228,18 @@ Task(subagent_type="oh-my-claudecode:architect", model="opus", prompt="...")
 | 파일 | 설명 |
 |------|------|
 | `agent-routing.md` | 에이전트 역할 → subagent_type 매핑 |
-| `create-worktree.md` | git 워크트리 생성 |
-| `print-worktree-summary.md` | 워크트리 정보 출력 |
-| `create-pr.md` | Pull Request 생성 |
-| `code-review-gate.md` | 코드리뷰 gating |
-| `lint-format.md` | 린트 및 포맷 |
-| `cleanup-worktree.md` | 워크트리 정리 |
+| ~~`create-worktree.md`~~ | git 워크트리 생성 → **`create-worktree` 스킬로 격상** |
+| ~~`print-worktree-summary.md`~~ | 워크트리 정보 출력 → **`print-worktree-summary` 스킬로 격상** |
+| ~~`create-pr.md`~~ | Pull Request 생성 → **`create-pr` 스킬로 격상** |
+| ~~`code-review-gate.md`~~ | 코드리뷰 gating → **`code-review-gate` 스킬로 격상** |
+| ~~`lint-format.md`~~ | 린트 및 포맷 → **`lint-format` 스킬로 격상** |
+| ~~`cleanup-worktree.md`~~ | 워크트리 정리 → **`cleanup-worktree` 스킬로 격상** |
 | `resolve-worklog-target.md` | 워크로그 타겟 결정 |
-| `resolve-base-branch.md` | base branch 결정 |
+| ~~`resolve-base-branch.md`~~ | base branch 결정 → **`resolve-base-branch` 스킬로 격상** |
 | `resolve-test-command.md` | 테스트 명령 결정 |
 | `update-worklog.md` | 워크로그 업데이트 공통 절차 |
 | `orchestration-context.md` | vwork 오케스트레이션 컨텍스트 |
-| `create-jira-issue.md` | Jira 이슈 생성 |
+| ~~`create-jira-issue.md`~~ | Jira 이슈 생성 → **`create-jira-issue` 스킬로 격상** |
 | `skill-schema.md` | 이 파일 (스킬 스키마) |
 | `delegation-policy.md` | 에이전트를 호출하는 스킬은 이 정책을 따른다 |
 

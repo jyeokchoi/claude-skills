@@ -24,6 +24,10 @@ allowed-tools: Bash(cat:*), Bash(test:*), Bash(ls:*), Bash(date:*), Bash(grep:*)
 | `slack_integration` | `false` | Slack 컨텍스트 수집 |
 | `base_branch` | (자동 탐지) | base branch 명시 지정 |
 
+## 경로 규칙
+
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 입력값
 
 - Raw arguments: $ARGUMENTS
@@ -108,10 +112,9 @@ d. jira_url: 프로젝트 설정에 `jira_base_url`이 설정된 경우 사용, 
 - jira: Jira 이슈 URL (건너뛴 경우 비어있음)
 - branch_name: 프로젝트 설정의 `branch_pattern` 적용 (기본: `feature/{task_name}`)
 - base_branch:
-  `_shared/resolve-base-branch.md`가 존재하는 경우:
-  > **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
+  `resolve-base-branch` 스킬의 절차를 따른다.
 
-  없는 경우: 프로젝트 설정의 `base_branch` → 자동 탐지 → 사용자 질문
+  fallback (스킬 미설치 시): 프로젝트 설정의 `base_branch` → 자동 탐지 → 사용자 질문
 
 ### 6. 브랜치 또는 worktree 생성
 
@@ -142,11 +145,10 @@ a. 프로젝트 설정에 `develop_sync`가 설정된 경우 해당 명령으로
    # fork_workflow=false (또는 미설정) → git fetch upstream
    ```
 b. worktree 생성:
-   `_shared/create-worktree.md`가 존재하는 경우:
-   > **Shared**: `_shared/create-worktree.md` 절차를 따른다.
+   `create-worktree` 스킬의 절차를 따른다.
    > - `task_name` = {task_name}, `branch_name` = {branch_name}, `base_ref` = {base_branch}, `create_branch` = `true`
 
-   없는 경우 (인라인):
+   fallback (스킬 미설치 시):
    ```bash
    WORKTREE_DIR="../worktrees/{task_name}"
    git worktree add -b {branch_name} "$WORKTREE_DIR" ${base_branch}

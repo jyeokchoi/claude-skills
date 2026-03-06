@@ -5,6 +5,11 @@ description: Use when reviewing PRs requested to you, before starting code revie
 
 # Pull Request 리뷰
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 개요
 
 PR 리뷰 워크플로우. **PR 목록 조회 → 사용자 선택** → 워크트리 생성 → 컨텍스트 수집 → 요약 → Architect 상담(선택) → 코드 리뷰 → 코멘트/승인 → 워크트리 정리.
@@ -143,10 +148,25 @@ Read("/tmp/pr-review-<number>/path/to/changed/file.ts")
 
 **중요:** 에이전트가 이 질문을 스킵하면 안 됨. 사용자가 "바로 리뷰"를 선택하는 것은 OK.
 
+### 4-B. 리뷰 포커스 확인 (필수)
+
+**이 질문도 반드시 해야 함 - 스킵 금지:**
+
+`AskUserQuestion`으로 자유 입력을 받는다:
+> "리뷰 시 특별히 집중해서 볼 부분이 있나요? (없으면 엔터)"
+
+예시 응답:
+- "성능 관련 변경만 집중적으로"
+- "이 PR은 기존 API 호환성이 중요해"
+- "동시성 이슈 주의해서 봐줘"
+- (빈 응답) → 일반 리뷰
+
+사용자가 포커스를 지정하면 Step 6의 리뷰 에이전트 프롬프트에 **"리뷰 포커스: {사용자 입력}"** 을 포함시킨다.
+
 ### 5. 리뷰 방식 선택
 
 사용자에게 질문:
-- **간단 리뷰**: 작은 변경, 빠른 검토 → `Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet", ...)` 단일 패스 리뷰
+- **간단 리뷰**: 작은 변경, 빠른 검토 → `Task(subagent_type="oh-my-claudecode:code-reviewer", model="opus", ...)` 단일 패스 리뷰
 - **종합 리뷰**: 큰 변경, 3-persona 토론 → `/exhaustive-review`
 
 ### 6. 코드 리뷰 실행
@@ -216,7 +236,7 @@ git worktree remove /tmp/pr-review-<number>
 | Diff | `git diff <base>...HEAD` (워크트리에서) |
 | 파일 읽기 | `Read("/tmp/pr-review-<number>/path/to/file")` |
 | Architect 상담 | `Task` tool with `subagent_type="oh-my-claudecode:architect"` |
-| 간단 리뷰 | `Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet")` |
+| 간단 리뷰 | `Task(subagent_type="oh-my-claudecode:code-reviewer", model="opus")` |
 | 종합 리뷰 | `/exhaustive-review` |
 | 코멘트 | `gh pr comment <number> --body "..."` |
 | 승인 | `gh pr review <number> --approve` |

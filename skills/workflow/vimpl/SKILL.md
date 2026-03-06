@@ -4,6 +4,11 @@ description: Incremental or auto implementation with TDD, code-simplifier, paral
 argument-hint: 'Usage: /vimpl [worklog-folder-or-worklog.md]'
 ---
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 프로젝트 설정
 
 이 스킬은 프로젝트 설정 파일(`rules/project-params.local.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
@@ -97,8 +102,8 @@ plan.md 체크박스가 진실 기준이다:
 ### 병렬 배치 복구
 
 `parallel_batch.active == true`이면:
-1. `omc_run_team_status`로 각 job 확인:
-   - `running` → 대기 (`omc_run_team_wait`)
+1. `mcp__team__omc_run_team_status(team_name="{team_name}")`로 각 job 확인:
+   - `running` → 대기 (`mcp__team__omc_run_team_status(team_name="{team_name}")` 재확인)
    - `completed` → 결과 수집
    - `failed` → Claude fallback으로 1회 재시도
 2. `post_processing_step`부터 후처리 재개 (code-simplifier → 검증 → 스테이징 → plan 업데이트)
@@ -228,8 +233,8 @@ project_type 결정 후 `state_write(mode="vimpl")`로 `project_type`과 `cli_ty
 
 `_shared/orchestration-context.md`의 **CLI 가용성 결정** 절차에 따라 `CODEX_AVAILABLE`, `GEMINI_AVAILABLE`, `cli_type`을 사용한다.
 
-- `cli_type=codex` → **반드시** 아래 omc_run_team_start(codex) 경로 실행. Claude fallback 전환 금지.
-- `cli_type=gemini` → **반드시** 아래 omc_run_team_start(gemini) 경로 실행. Claude fallback 전환 금지.
+- `cli_type=codex` → **반드시** 아래 omc-teams MCP 도구(codex) 경로 실행. Claude fallback 전환 금지.
+- `cli_type=gemini` → **반드시** 아래 omc-teams MCP 도구(gemini) 경로 실행. Claude fallback 전환 금지.
 - `cli_type=claude` → 아래 Claude fallback 경로 실행
 
 > **유일한 예외 — TDD 출력 파싱 실패**: CLI 워커가 `completed`이지만 TDD 출력 형식(`### Red Phase`, `### Green Phase`, `### Refactor Phase`)이 누락된 경우에만 해당 항목을 claude Task(executor, sonnet) fallback으로 1회 재실행한다. 이 예외는 CLI 워커의 형식 비준수에 대한 안전장치이며, 성공적으로 실행된 CLI 워커를 Claude로 대체하는 것은 여전히 금지한다.
@@ -238,18 +243,13 @@ project_type 결정 후 `state_write(mode="vimpl")`로 `project_type`과 `cli_ty
 
 **CLI 라우팅 분기:**
 
-- `project_type=backend` + `CODEX_AVAILABLE=true` → 각 항목을 `omc_run_team_start(codex)` 로 실행:
+- `project_type=backend` + `CODEX_AVAILABLE=true` → 각 항목을 omc-teams MCP 도구로 실행:
   ```
-  ToolSearch(query="+omc_run_team_start")
-  mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
-    "teamName": "{WORKLOG_SLUG}-impl",
-    "agentTypes": ["codex"],
-    "tasks": [{"subject": "{item title}", "description": "{아래 task description 형식 참조}"}],
-    "cwd": "{cwd}"
-  })
-  mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
+  mcp__team__omc_run_team_start(count=1, provider="codex", task="{item title}: {아래 task description 형식 참조}")
+  # 출력: {"teamName": "{WORKLOG_SLUG}-impl", "jobId": ..., "message": "..."}
+  mcp__team__omc_run_team_status(team_name="{WORKLOG_SLUG}-impl")
   ```
-- `project_type=frontend` + `GEMINI_AVAILABLE=true` → `omc_run_team_start(gemini)` 로 실행 (동일 패턴)
+- `project_type=frontend` + `GEMINI_AVAILABLE=true` → omc-teams MCP 도구(gemini)로 실행 (동일 패턴, `provider="gemini"`)
 - `project_type=fullstack` → claude Task(executor) fallback (v1: 전체 Claude fallback)
 - `project_type=cli/library` 또는 CLI 미가용 → 기존 Claude Task(executor)로 실행 (변경 없음)
 

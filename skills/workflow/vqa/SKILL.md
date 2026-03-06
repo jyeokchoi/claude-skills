@@ -4,6 +4,11 @@ description: Parallel QA verification with team-based research, report generatio
 argument-hint: 'Usage: /vqa [worklog-folder-or-worklog.md]'
 ---
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 프로젝트 설정
 
 이 스킬은 프로젝트 설정 파일(`rules/project-params.local.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
@@ -58,7 +63,7 @@ route 우선순위 계약:
 1. **워크로그 컨텍스트**: worklog.md 읽기 — 목표, 완료 기준, 결정사항, 타임라인 항목
 2. **플랜 컨텍스트**: plan.md 읽기 — 요구사항, 동작 명세, 완료 상태가 포함된 전체 체크리스트
 3. **코드 컨텍스트**:
-   - 기준 브랜치 결정: `_shared/resolve-base-branch.md`를 로드하고 해당 로직을 따라 `BASE_REF`를 설정한다.
+   - 기준 브랜치 결정: `resolve-base-branch` 스킬을 로드하고 해당 로직을 따라 `BASE_REF`를 설정한다.
    - `git diff {BASE_REF}...HEAD --stat`으로 변경된 파일 목록 파악
    - `git diff {BASE_REF}...HEAD`로 전체 diff 확인
 4. **테스트 컨텍스트**:
@@ -74,7 +79,7 @@ route 우선순위 계약:
 ### Agent 1: Intent Verification (워크로그 기반 의도 검증)
 
 ```
-Task(subagent_type="oh-my-claudecode:critic", model="sonnet",
+Task(subagent_type="oh-my-claudecode:critic", model="opus",
      prompt="
 Read-only 검증 에이전트. Read, Glob, Grep으로 코드를 직접 탐색할 수 있다. Write, Edit, Bash는 사용하지 않는다.
 
@@ -109,7 +114,7 @@ Use Read tool to examine changed files in detail beyond the diff.
 ### Agent 2: Spec Verification (플랜 기반 동작/스펙 검증)
 
 ```
-Task(subagent_type="oh-my-claudecode:code-reviewer", model="sonnet",
+Task(subagent_type="oh-my-claudecode:code-reviewer", model="opus",
      prompt="
 Read-only 검증 에이전트. Read, Glob, Grep으로 코드를 직접 탐색할 수 있다. Write, Edit, Bash는 사용하지 않는다.
 
@@ -145,7 +150,7 @@ Use Read tool to examine implementation files referenced in the diff.
 ### Agent 3: Test Verification (테스트 커버리지/올바름 검증)
 
 ```
-Task(subagent_type="oh-my-claudecode:analyst", model="sonnet",
+Task(subagent_type="oh-my-claudecode:analyst", model="opus",
      prompt="
 Read-only 검증 에이전트. Read, Glob, Grep으로 코드를 직접 탐색할 수 있다. Write, Edit, Bash는 사용하지 않는다.
 
@@ -229,62 +234,8 @@ Use Read tool to examine changed files and surrounding code for pattern comparis
 Agent 1-4와 **병렬로** Codex CLI 워커를 실행하여 독립적 크로스 검증을 수행한다:
 
 ```
-ToolSearch(query="+omc_run_team_start")
-mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
-  "teamName": "{WORKLOG_SLUG}-qa-codex-xverify",
-  "agentTypes": ["codex"],
-  "tasks": [{
-    "subject": "QA 크로스 검증",
-    "description": "
-You are an independent cross-verifier. Analyze the implementation from a fresh perspective.
-
-## Your Task
-Independently verify the implementation against the worklog goals and plan spec.
-Focus on issues that might be missed by individual dimension-focused reviewers.
-
-## Check ALL dimensions:
-1. **Intent**: Does the implementation match the worklog's stated goals?
-2. **Spec**: Does it fulfill the plan's requirements and behavior spec?
-3. **Tests**: Are tests adequate and correct?
-4. **Architecture**: Is the code consistent with codebase patterns?
-5. **Cross-cutting**: Are there issues that span multiple dimensions?
-
-## Worklog
-{worklog content}
-
-## Plan
-{plan content}
-
-## Code Changes
-{diff}
-
-## Test Results
-{test run output}
-
-## Changed File Paths
-{changed file paths}
-
-## Test File Paths
-{test file paths}
-
-## Required Output Format
-### Cross-Verification Score: {1-5}/5
-### Findings
-| # | Dimension | Severity | Finding | Suggestion |
-|---|-----------|----------|---------|------------|
-
-### Unique Insights
-{issues not likely caught by single-dimension reviewers}
-
-### Verdict: PASS / NEEDS_WORK
-"
-  }],
-  "cwd": "{cwd}"
-})
-mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
-mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup(
-  {"job_id": "{jobId}"}
-)
+Skill("oh-my-claudecode:ask-codex", "QA 크로스 검증: You are an independent cross-verifier. Analyze the implementation from a fresh perspective.\n\n## Your Task\nIndependently verify the implementation against the worklog goals and plan spec.\nFocus on issues that might be missed by individual dimension-focused reviewers.\n\n## Check ALL dimensions:\n1. **Intent**: Does the implementation match the worklog's stated goals?\n2. **Spec**: Does it fulfill the plan's requirements and behavior spec?\n3. **Tests**: Are tests adequate and correct?\n4. **Architecture**: Is the code consistent with codebase patterns?\n5. **Cross-cutting**: Are there issues that span multiple dimensions?\n\n## Worklog\n{worklog content}\n\n## Plan\n{plan content}\n\n## Code Changes\n{diff}\n\n## Test Results\n{test run output}\n\n## Changed File Paths\n{changed file paths}\n\n## Test File Paths\n{test file paths}\n\n## Required Output Format\n### Cross-Verification Score: {1-5}/5\n### Findings\n| # | Dimension | Severity | Finding | Suggestion |\n|---|-----------|----------|---------|------------|\n\n### Unique Insights\n{issues not likely caught by single-dimension reviewers}\n\n### Verdict: PASS / NEEDS_WORK")
+# 결과 텍스트, .omc/artifacts/ask/ 에 자동 저장
 ```
 
 - completed → `CODEX_XVERIFY` 결과로 저장, Phase 3에서 병합

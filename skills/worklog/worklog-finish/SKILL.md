@@ -7,6 +7,11 @@ allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(gi
 
 worklog 작업을 완료하고, 연결된 Jira 이슈를 선택적으로 업데이트하며, PR을 선택적으로 생성한다.
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 핵심 설계 원칙
 
 - **Worklog 파일은 절대 git에 커밋하지 않는다.** Gist에 업로드하고, Jira에 첨부(가능한 경우)한 뒤 삭제한다.
@@ -42,10 +47,9 @@ MAIN_REPO=$(git worktree list | head -1 | awk '{print $1}')
 
 **base branch 결정:**
 
-`_shared/resolve-base-branch.md`가 존재하는 경우:
-> **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
+`resolve-base-branch` 스킬의 절차를 따른다.
 
-없는 경우: 프로젝트 설정 파일(`rules/project-params.local.md`)의 `base_branch` → 자동 탐지 → 사용자 질문
+fallback (스킬 미설치 시): 프로젝트 설정 파일(`rules/project-params.local.md`)의 `base_branch` → 자동 탐지 → 사용자 질문
 
 변경 파일 수집:
 ```bash
@@ -116,8 +120,7 @@ fi
 
 **a. PR 생성:**
 
-프로젝트에 `_shared/create-pr.md`가 있는 경우:
-> **Shared**: `_shared/create-pr.md` 절차를 따른다.
+`create-pr` 스킬의 절차를 따른다.
 > - `branch_name`: {branch_name}
 > - `jira_key`: {jira_key} (frontmatter에서 추출, 없으면 생략)
 > - `changes_summary`: Step 3에서 수집한 수정 범위
@@ -125,7 +128,7 @@ fi
 > - `base_branch`: Step 3에서 결정한 BASE_REF의 브랜치명
 > - `changed_files`: Step 3에서 수집한 변경 파일 목록
 
-없는 경우: `gh pr create` 명령을 직접 실행한다:
+fallback (스킬 미설치 시): `gh pr create` 명령을 직접 실행한다:
 ```bash
 gh pr create \
   --title "{pr_title}" \
@@ -161,12 +164,11 @@ EOF
 
 **예:**
 
-프로젝트에 `_shared/cleanup-worktree.md`가 있는 경우:
-> **Shared**: `_shared/cleanup-worktree.md` 절차를 따른다.
+`cleanup-worktree` 스킬의 절차를 따른다.
 > - `main_repo_path`: {MAIN_REPO}
 > - `worktree_path`: {worktree_path}
 
-없는 경우:
+fallback (스킬 미설치 시):
 ```bash
 cd {MAIN_REPO}
 git worktree remove {worktree_path} --force

@@ -4,6 +4,11 @@ description: Deep code understanding and impact analysis for existing code modif
 argument-hint: 'Usage: /vanalyze [worklog-folder-or-worklog.md] [file-or-module-path]'
 ---
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 프로젝트 설정
 
 이 스킬은 프로젝트 설정 파일(`rules/project-params.local.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
@@ -303,21 +308,11 @@ IMPORTANT: Do NOT use Bash. Analyze only the provided context.")
 **codex CLI 워커 실행** (`_shared/cli-runtime-check.md` 섹션 6 참조):
 
 ```
-ToolSearch(query="+omc_run_team_start")
-mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
-  "teamName": "{WORKLOG_SLUG}-analyze-impact",
-  "agentTypes": ["codex"],
-  "tasks": [{"subject": "영향도 분석", "description": "{Agent 4와 동일한 프롬프트}"}],
-  "cwd": "{cwd}"
-})
+Skill("oh-my-claudecode:ask-codex", "영향도 분석: {Agent 4와 동일한 프롬프트}")
+# 결과 텍스트, .omc/artifacts/ask/ 에 자동 저장
 ```
 
 Agent 4 (Claude architect)와 codex CLI 워커를 **동시에** 호출한다.
-
-codex 결과 수신:
-```
-mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
-```
 
 **결과 병합 규칙:**
 
@@ -328,13 +323,6 @@ mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
 | 양쪽 평가가 충돌 (예: risk HIGH vs LOW) | 양쪽 근거 모두 기록 + `[평가 분기]` 표시 | — (사용자 판단 필요) |
 
 병합 결과를 `IMPACT_RESULT`로 저장한다.
-
-**codex 워커 정리** (Phase 3 완료 직후):
-```
-mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({
-  "job_id": "{jobId}"
-})
-```
 
 **`CODEX_AVAILABLE=false`인 경우:** Agent 4 (Claude architect, opus) 단독으로 실행한다. 기존 동작과 동일.
 

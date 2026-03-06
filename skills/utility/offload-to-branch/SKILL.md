@@ -29,6 +29,10 @@ allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(gi
 
 `rules/project-params.local.md`가 없으면 위 기본값으로 동작한다.
 
+## 경로 규칙
+
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 입력
 
 - 원시 인자: $ARGUMENTS
@@ -97,8 +101,7 @@ git diff $MERGE_BASE..HEAD -- {selected_files} > /tmp/offload.patch
 
 **`jira_pattern`이 `rules/project-params.local.md`에 있는 경우에만 실행한다. 없으면 이 단계를 건너뛴다.**
 
-> **Shared**: `_shared/create-jira-issue.md` 절차를 따른다.
-> - 경로 우선순위: 프로젝트 `.claude/skills/_shared/create-jira-issue.md` → `~/.claude/skills/_shared/create-jira-issue.md`
+`create-jira-issue` 스킬의 절차를 따른다.
 > - `task_brief` = 변경 요약 + 영향 범위
 > - `suggested_summary` = brief로부터 도출
 
@@ -118,8 +121,7 @@ b. 이슈 키 또는 brief로부터 worktree 이름 결정:
 
 c. Worktree 생성:
 
-> **Shared**: `_shared/create-worktree.md` 절차를 따른다.
-> - 경로 우선순위: 프로젝트 `.claude/skills/_shared/create-worktree.md` → `~/.claude/skills/_shared/create-worktree.md`
+`create-worktree` 스킬의 절차를 따른다.
 > - `task_name` = worktree 이름
 > - `branch_name` = 위에서 결정한 브랜치 이름
 > - `base_ref` = `$BASE_REF`
@@ -173,8 +175,7 @@ git commit -m "refactor: extract {brief} to separate branch ({issue_key_if_exist
 
 ### 9. Lint 및 포맷
 
-> **Shared**: `_shared/lint-format.md` 절차를 따른다.
-> - 경로 우선순위: 프로젝트 `.claude/skills/_shared/lint-format.md` → `~/.claude/skills/_shared/lint-format.md`
+`lint-format` 스킬의 절차를 따른다.
 > - `changed_files`: 오프로드된 파일 목록
 > - `project_dir`: worktree 또는 메인 리포 중 node_modules가 있는 쪽의 해당 경로
 >
@@ -182,8 +183,7 @@ git commit -m "refactor: extract {brief} to separate branch ({issue_key_if_exist
 
 ### 10. 코드 리뷰 (필수)
 
-> **Shared**: `_shared/code-review-gate.md` 절차를 따른다.
-> - 경로 우선순위: 프로젝트 `.claude/skills/_shared/code-review-gate.md` → `~/.claude/skills/_shared/code-review-gate.md`
+`code-review-gate` 스킬의 절차를 따른다.
 > - `diff_target`: `$BASE_REF`
 > - `changed_files`: 오프로드된 파일 목록
 >
@@ -193,8 +193,7 @@ git commit -m "refactor: extract {brief} to separate branch ({issue_key_if_exist
 
 **a. PR 생성:**
 
-> **Shared**: `_shared/create-pr.md` 절차를 따른다.
-> - 경로 우선순위: 프로젝트 `.claude/skills/_shared/create-pr.md` → `~/.claude/skills/_shared/create-pr.md`
+`create-pr` 스킬의 절차를 따른다.
 > - `branch_name`: {branch_name}
 > - `jira_key`: {issue_key} (Step 4에서 생성, `--no-jira`거나 jira_pattern 없으면 생략)
 > - `changes_summary`: Step 3에서 수집한 변경 요약
@@ -222,8 +221,7 @@ git commit -m "refactor: extract {brief} to separate branch ({issue_key_if_exist
 
 **예:**
 
-> **Shared**: `_shared/cleanup-worktree.md` 절차를 따른다.
-> - 경로 우선순위: 프로젝트 `.claude/skills/_shared/cleanup-worktree.md` → `~/.claude/skills/_shared/cleanup-worktree.md`
+`cleanup-worktree` 스킬의 절차를 따른다.
 > - `main_repo_path`: {MAIN_REPO}
 > - `worktree_path`: {worktree_path}
 

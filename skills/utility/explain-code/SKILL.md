@@ -5,6 +5,11 @@ description: Use when user asks to understand code changes, branch diffs, archit
 
 # 코드 설명
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 개요
 
 사용자가 코드 변경사항이나 현재 코드 구조를 이해할 수 있도록 돕는 스킬. 하이레벨 설명, 아키텍처 다이어그램, 리뷰 순서를 제공한다.

@@ -4,6 +4,11 @@ description: Playwright MCP로 PRD 유저 시나리오와 테스트 케이스를
 argument-hint: 'Usage: /vbrowser [worklog-folder-or-url]'
 ---
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 ## 프로젝트 설정
 
 이 스킬은 프로젝트 설정 파일(`rules/project-params.local.md`)을 참조한다 (auto-loaded).

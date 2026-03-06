@@ -18,7 +18,12 @@ allowed-tools: Bash(git diff:*), Bash(git merge-base:*), Bash(git rev-parse:*), 
 | `base_branch` | diff 기준 브랜치 (e.g., `upstream/develop`) |
 | `fork_workflow` | `true` → origin=fork, upstream=org repo 구조 |
 
-설정이 없으면: `_shared/resolve-base-branch.md`가 있으면 그 절차를 따른다.
+설정이 없으면: `resolve-base-branch` 스킬의 절차를 따른다.
+
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
 
 ## 목적
 
@@ -35,23 +40,15 @@ allowed-tools: Bash(git diff:*), Bash(git merge-base:*), Bash(git rev-parse:*), 
 
 ### Step 1: 워크로그 탐색
 
-- `_shared/resolve-worklog-target.md`가 존재하는 경우:
-  > **Shared**: `_shared/resolve-worklog-target.md` 절차를 따른다. (`required_files`: 없음)
-- 없는 경우 폴백:
-  - $ARGUMENTS가 경로이면 해당 경로 사용
-  - 없으면 활성 워크로그 자동 탐색:
-    ```bash
-    find .claude/worklogs -name "worklog.md" -type f 2>/dev/null | head -5
-    ```
+- `_shared/resolve-worklog-target.md`를 로드하고 해당 절차를 따른다 (`required_files`: 없음).
 
 ### Step 2: 현재 상태 수집
 
 **a. Base branch 결정:**
 
-`_shared/resolve-base-branch.md`가 존재하는 경우:
-> **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
+`resolve-base-branch` 스킬의 절차를 따른다.
 
-없는 경우: `project-params.local.md`의 `base_branch` → 자동 탐지 → 사용자 질문
+fallback (스킬 미설치 시): `project-params.local.md`의 `base_branch` → 자동 탐지 → 사용자 질문
 
 **b. 변경 파일 목록:**
 ```bash

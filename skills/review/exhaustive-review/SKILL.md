@@ -5,6 +5,11 @@ argument-hint: 'Usage: /exhaustive-review [PR#N | file-path] [--focus area1,area
 allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(git merge-base:*), Bash(git status:*), Bash(git remote:*), Bash(gh:*), Bash(which:*), Read, Write, Edit, Glob, Grep, AskUserQuestion, Task, TeamCreate, TeamDelete, SendMessage, TaskCreate, TaskList, TaskGet, TaskUpdate
 ---
 
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
+> **`X` 스킬** → 스킬 시스템이 제공하는 경로. `Glob("**/X/SKILL.md")`로 탐색 가능.
+
 <Purpose>
 세 명의 리뷰어 페르소나가 합의에 이를 때까지 코드 변경사항을 진정으로 토론하는 에이전트 팀을 구성한다. 중재자는 자신의 의견을 주입하지 않고 토론을 진행하며, Advocate, Surgeon, Challenger는 SendMessage를 통해 서로 직접 소통하며 각자의 발견을 검증한다. 최종 결과물은 모든 리뷰어가 합의한 통합 보고서이며, 독립적인 의견들을 오케스트레이터가 종합한 것이 아니다.
 </Purpose>
@@ -45,7 +50,7 @@ allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(gi
 - 명명 컨벤션이 일관적인가?
 - 기능 커버리지가 완전한가?
 **집중하지 않는 영역:** 중복, 아키텍처, 정확성 버그
-**단, 다른 영역의 명백히 심각한 문제는 플래그 가능 (CRITICAL에 한함)**
+**단, 다른 영역의 명백히 심각한 문제는 플래그 가능**
 
 ### Surgeon
 **역할:** 코드 구조를 정밀하게 해부하는 구조 리뷰어
@@ -306,19 +311,10 @@ IF codex_available = false → 이 스텝 전체 생략 (silent skip).
 
 IF codex_available = true → 매 토론 라운드 종료 후 실행:
 
-1. ToolSearch(query="+omc_run_team_start")  // 최초 1회
-2. omc_run_team_start({
-     teamName: "exhaustive-review-codex-r{N}",
-     agentTypes: ["codex"],
-     tasks: [{
-       subject: "Round {N} 독립 검증",
-       description: "{CODEX_VALIDATION_PROMPT}"
-     }],
-     cwd: "{cwd}"
-   })
-3. omc_run_team_wait({job_id})
-4. omc_run_team_cleanup({teamName: "exhaustive-review-codex-r{N}"})
-5. 결과 처리:
+1. `Skill("oh-my-claudecode:ask-codex", "Round {N} 독립 검증: {CODEX_VALIDATION_PROMPT}")`
+   - 결과 텍스트, `.omc/artifacts/ask/`에 자동 저장
+   - 실패 시: claude Task() fallback으로 검증 수행
+2. 결과 처리:
    - completed + 형식 일치 → 다음 라운드 컨텍스트에 포함
    - completed + 형식 불일치 → raw 텍스트로 포함하거나, 해당 라운드 검증 생략
    - failed/timeout → 해당 라운드 검증만 생략, 토론 계속

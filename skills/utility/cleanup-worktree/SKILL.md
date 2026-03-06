@@ -1,3 +1,9 @@
+---
+name: cleanup-worktree
+description: Worktree 정리 공통 절차. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Bash(git:*), Bash(cd:*), Bash(pwd:*)
+---
+
 # Worktree 정리 (공통 절차)
 
 ## 입력

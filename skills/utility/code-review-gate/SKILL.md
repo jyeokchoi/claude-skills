@@ -1,4 +1,14 @@
+---
+name: code-review-gate
+description: 코드 리뷰 게이트 공통 절차. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Read, Agent, AskUserQuestion
+---
+
 # 코드 리뷰 게이트 (공통 절차)
+
+## 경로 규칙
+
+> **`_shared/X`** → `{Base directory}/../_shared/X` (`{Base directory}`는 시스템이 주입하는 "Base directory for this skill" 값)
 
 ## 입력
 

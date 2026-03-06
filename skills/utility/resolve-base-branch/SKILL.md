@@ -1,3 +1,9 @@
+---
+name: resolve-base-branch
+description: 기준 브랜치(BASE_REF) 결정 공통 절차. 다른 스킬에서 인라인으로 호출한다.
+allowed-tools: Bash(gh:*), Bash(git:*), Read, AskUserQuestion
+---
+
 # Base Branch 결정 (공통 절차)
 
 ## 입력

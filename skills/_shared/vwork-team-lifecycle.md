@@ -1,4 +1,5 @@
 # vwork 팀 Lifecycle 관리
+<!-- 경로 규칙: `_shared/X` = 같은 디렉토리의 X | `_templates/X` = 형제 `_templates/` 디렉토리의 X -->
 
 vwork의 에이전트 팀 생성, JIT 스폰, Eager Cleanup, Phase 전이 시 팀원 관리 절차.
 
@@ -24,15 +25,15 @@ SKILL.md의 "정규 Phase-팀원 매핑" 테이블이 단일 진실 기준이다
 **IMPL/TEST phase CLI 워커 스폰:**
 
 `_shared/cli-runtime-check.md`와 `_shared/agent-routing.md`의 "스킬별 CLI 라우팅 매핑"을 참조하여 CLI 워커가 선택된 경우:
-- Claude Task() 대신 `omc_run_team_start`로 CLI 워커 스폰 (아래 CLI 워커 스폰 템플릿 참조)
+- Claude Task() 대신 `omc-teams MCP 도구`로 CLI 워커 스폰 (아래 CLI 워커 스폰 템플릿 참조)
 - `spawned_agents`에 순수 이름만 기록 (예: `"implementer"`, `"tester"`)
-- 별도 `cli_workers` 맵에 메타데이터를 기록: `{"implementer": {"cli_type": "codex", "team_name": "...", "job_id": "..."}, "tester": {"cli_type": "gemini", "team_name": "...", "job_id": "..."}}`
+- 별도 `cli_workers` 맵에 메타데이터를 기록: `{"implementer": {"cli_type": "codex", "team_name": "..."}, "tester": {"cli_type": "gemini", "team_name": "..."}}`
 - `state_write(mode="vwork")` 시 `spawned_agents`와 `cli_workers` 모두 갱신
 
 **base name 매칭 규칙:**
 - `spawned_agents`에서 역할을 식별할 때는 항목 자체가 역할명이다 (접미사 없음).
 - `cli_workers` 맵에서 해당 역할명이 키로 존재하면 CLI 워커 팀원으로 판단한다.
-- 예: `spawned_agents = ["implementer"]`, `cli_workers = {"implementer": {"cli_type": "codex", "team_name": "wl-impl", "job_id": "job-123"}}` → `implementer`는 CLI 워커
+- 예: `spawned_agents = ["implementer"]`, `cli_workers = {"implementer": {"cli_type": "codex", "team_name": "wl-impl"}}` → `implementer`는 CLI 워커
 
 피드백 루프 대비 스폰:
 - VERIFY phase에서 `implementer`가 팀에 없으면 추가 스폰 (VERIFY→IMPL 대비).
@@ -67,8 +68,7 @@ SendMessage(type="shutdown_request", recipient="{팀원}", content="Phase 완료
 
 **CLI 워커 팀원** (`cli_workers[{팀원명}]`이 존재하는 경우):
 ```
-ToolSearch(query="+omc_run_team_cleanup")
-mcp__plugin_oh-my-claudecode_team__omc_run_team_cleanup({"job_id": "{cli_workers[{팀원명}].job_id}"})
+mcp__team__omc_run_team_cleanup(job_id="{cli_workers[{팀원명}].job_id}")
 ```
 호출 성공 후 `spawned_agents`에서 제거, `cli_workers`에서 해당 키 제거.
 
@@ -91,20 +91,16 @@ Task(subagent_type="{subagent_type}", model="{model}",
 
 `_shared/cli-runtime-check.md` 섹션 6의 호출 패턴을 사용한다:
 ```
-ToolSearch(query="+omc_run_team_start")
-mcp__plugin_oh-my-claudecode_team__omc_run_team_start({
-  "teamName": "{WORKLOG_SLUG}-{phase-slug}",
-  "agentTypes": ["{codex|gemini}"],
-  "tasks": [{"subject": "{작업 제목}", "description": "{task description — TDD/Testing Philosophy 포함}"}],
-  "cwd": "{cwd}"
-})
-# → jobId 반환
-mcp__plugin_oh-my-claudecode_team__omc_run_team_wait({"job_id": "{jobId}"})
+mcp__team__omc_run_team_start(count=1, provider="{codex|gemini}", task="{작업 제목}: {task description — TDD/Testing Philosophy 포함}")
+# → {"teamName": "...", ...}
+
+# 완료 대기
+mcp__team__omc_run_team_status(team_name="{teamName}")
 ```
 
 스폰 후:
 - `spawned_agents`에 순수 이름 추가 (예: `"implementer"`)
-- `cli_workers` 맵에 메타데이터 기록 (예: `{"implementer": {"cli_type": "codex", "team_name": "{WORKLOG_SLUG}-{phase-slug}", "job_id": "{jobId}"}}`)
+- `cli_workers` 맵에 메타데이터 기록 (예: `{"implementer": {"cli_type": "codex", "team_name": "{teamName}"}}`)
 - `state_write(mode="vwork")`로 양쪽 모두 갱신
 
 ## Phase 전이 시 Lifecycle 실행
