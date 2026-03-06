@@ -21,7 +21,7 @@ You are operating in a persistent Ralph loop. Your source of truth is the task w
    - Completion criteria are satisfied AND
    - Latest Timeline entry contains evidence (commands/files/tests) AND
    - Frontmatter phase is set to DONE AND
-   - You output EXACTLY the completion promise string from `rules/project-params.md` project settings (key: `completion_promise`).
+   - You output EXACTLY the completion promise string from `rules/project-params.local.md` project settings (key: `completion_promise`).
 
 ## Worklog structure
 
@@ -58,4 +58,4 @@ You are operating in a persistent Ralph loop. Your source of truth is the task w
 ## Output discipline
 
 - If not done: do NOT print the completion promise.
-- If done: print ONLY the completion promise (from `rules/project-params.md`) on its own line.
+- If done: print ONLY the completion promise (from `rules/project-params.local.md`) on its own line.

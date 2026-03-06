@@ -244,19 +244,19 @@ options:
 AskUserQuestion:
 
 ```yaml
-question: "프로젝트 설정 파일(project-params.md)을 어디에 만들까요?"
+question: "프로젝트 설정 파일(project-params.local.md)을 어디에 만들까요?"
 header: "설정 위치"
 options:
   - label: "프로젝트 레벨 (Recommended)"
-    description: "{현재 디렉토리}/.claude/rules/project-params.md — 이 프로젝트 전용"
+    description: "{현재 디렉토리}/.claude/rules/project-params.local.md — 이 프로젝트 전용"
   - label: "유저 레벨"
-    description: "~/.claude/rules/project-params.md — 모든 프로젝트의 기본값"
+    description: "~/.claude/rules/project-params.local.md — 모든 프로젝트의 기본값"
   - label: "건너뛰기"
     description: "설정 파일 없이 진행. 스킬이 자동 탐지로 동작합니다."
 ```
 
-- "유저 레벨" → `$PARAMS_PATH = ~/.claude/rules/project-params.md`, `$DETECT_DIR = {cwd}`
-- "프로젝트 레벨" → `$PARAMS_PATH = {cwd}/.claude/rules/project-params.md`, `$DETECT_DIR = {cwd}`
+- "유저 레벨" → `$PARAMS_PATH = ~/.claude/rules/project-params.local.md`, `$DETECT_DIR = {cwd}`
+- "프로젝트 레벨" → `$PARAMS_PATH = {cwd}/.claude/rules/project-params.local.md`, `$DETECT_DIR = {cwd}`
 - "Other" → 사용자 입력 경로, `$DETECT_DIR = 해당 경로의 프로젝트 루트`
 - "건너뛰기" → Step 7로 점프.
 
@@ -307,7 +307,7 @@ find "$DETECT_DIR" -maxdepth 2 -name "package.json" -not -path "*/node_modules/*
 
 | 변수 | 탐지 로직 | 폴백 |
 |------|-----------|------|
-| `$detected_base_branch` | A1 결과. fork이면 `upstream/{branch}`, 아니면 `origin/{branch}` | `origin/main` |
+| `$detected_base_branch` | A1 결과. fork이면 `upstream/{branch}`, 아니면 `upstream/{branch}` | `upstream/main` |
 | `$detected_fork` | A2에서 `upstream` remote 존재 여부 | `false` |
 | `$detected_jira` | A3 결과에서 프로젝트 prefix 추출 (e.g., `VREW` → `VREW-\d+`) | (빈 값) |
 | `$detected_test` | B에서 test script. 패키지 매니저에 맞게 조정 (e.g., `yarn test --run`) | (빈 값) |
@@ -351,7 +351,7 @@ questions:
     options:
       - label: "$detected_base_branch (Recommended)"
         description: "자동 탐지됨. remote prefix 포함 가능 (e.g., upstream/develop)"
-      - label: "origin/main"
+      - label: "upstream/main"
         description: "단일 리모트 프로젝트의 일반적 기본값"
   - question: "fork 기반 워크플로우인가요?"
     header: "fork"
@@ -429,7 +429,7 @@ questions:
 | 설정 | 유도 규칙 |
 |------|-----------|
 | `branch_pattern` | jira 설정됨 → `feature/{jira_key}.{task_name_short}` / 아니면 → `feature/{task_name}` |
-| `develop_sync` | fork=true → `git fetch origin && git fetch upstream` / false → `git fetch origin` |
+| `develop_sync` | fork=true → `git fetch origin && git fetch upstream` / false → `git fetch upstream` |
 | `dependency_install` | `$detected_deps` 사용. 빈 값이면 빈 값 유지 |
 | `format_command` | `$detected_format` 사용. 빈 값이면 빈 값 유지 |
 | `timezone` | `$detected_timezone` |
@@ -440,13 +440,13 @@ questions:
 
 ### 파일 생성
 
-`$SKILLS_DIR/_templates/project-params.md` 템플릿을 `$PARAMS_PATH`로 복사한다.
+`$SKILLS_DIR/_templates/project-params.local.md` 템플릿을 `$PARAMS_PATH`로 복사한다.
 Edit 도구로 각 설정의 `기본값` 열을 사용자가 확인/선택한 실제 값으로 교체한다.
 열 이름도 `기본값`에서 `값`으로 바꾼다.
 
 ```bash
 mkdir -p "$(dirname "$PARAMS_PATH")"
-cp "$SKILLS_DIR/_templates/project-params.md" "$PARAMS_PATH"
+cp "$SKILLS_DIR/_templates/project-params.local.md" "$PARAMS_PATH"
 ```
 
 → 즉시 Step 7 실행.

@@ -6,7 +6,7 @@
 - `jira_key` (선택): Jira 이슈 키 (e.g., PROJ-12345)
 - `changes_summary`: 수정 범위 요약
 - `impact_summary`: 기존 기능 영향 범위
-- `base_branch`: PR 대상 브랜치. `rules/project-params.md`의 `base_branch` 설정을 사용한다. 없으면 자동 탐지 (`gh repo view --json defaultBranchRef`), 그래도 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`.
+- `base_branch`: PR 대상 브랜치. `rules/project-params.local.md`의 `base_branch` 설정을 사용한다. 없으면 자동 탐지 (`gh repo view --json defaultBranchRef`), 그래도 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`.
 - `changed_files`: 변경된 파일 목록
 
 ## 절차
@@ -19,7 +19,7 @@ git remote -v
 
 - `upstream`이 다른 repo를 가리킴 → fork 구조
 - `origin` = fork, `upstream` = target repo
-- fork가 아닌 경우 `origin`이 target repo
+- fork가 아닌 경우 `upstream`이 target repo
 
 ### 2. Push
 
@@ -36,7 +36,7 @@ git push -u origin {branch_name}
 git log upstream/{base_branch} --pretty=format:"%an" -30 -- {changed_files} | sort | uniq -c | sort -rn | head -5
 
 # non-fork인 경우
-git log origin/{base_branch} --pretty=format:"%an" -30 -- {changed_files} | sort | uniq -c | sort -rn | head -5
+git log upstream/{base_branch} --pretty=format:"%an" -30 -- {changed_files} | sort | uniq -c | sort -rn | head -5
 ```
 
 - 빈 결과 시 사용자에게 직접 선택 요청

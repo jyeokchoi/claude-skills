@@ -1,7 +1,7 @@
 # Project Parameters (프로젝트별 설정)
 
 이 파일은 모든 워크플로우 스킬이 참조하는 프로젝트별 설정이다.
-프로젝트 루트의 `.claude/rules/` 아래에 `project-params.md`로 배치한다.
+프로젝트 루트의 `.claude/rules/` 아래에 `project-params.local.md`로 배치한다.
 스킬은 이 파일이 있으면 설정값을 사용하고, 없으면 기본값(자동 탐지 → 사용자 질문 → project_memory 기억)으로 동작한다.
 
 ---
@@ -11,9 +11,9 @@
 | 설정 | 기본값 | 비고 | 참조 스킬 |
 |------|--------|------|-----------|
 | `base_branch` | (자동 탐지: `gh repo view --json defaultBranchRef`) | PR base, diff 기준. remote-qualified 가능 (e.g., `upstream/develop`) | vwork, vplan, vqa, explain-code, exhaustive-review, worklog-compact, worklog-finish, worklog-start, worklog-amend, offload-to-branch |
-| `fork_workflow` | `false` | `true` = origin은 fork, upstream은 org repo | offload-to-branch, exclude-local-only-commits, worklog-finish, worklog-start, worklog-compact, explain-code |
+| `fork_workflow` | `false` | `true` = origin은 fork, upstream은 org repo. 기본 remote는 항상 upstream | offload-to-branch, worklog-finish, worklog-start, worklog-compact, explain-code |
 | `branch_pattern` | `feature/{task_name}` | jira 연동 시 `feature/{jira_key}.{task_name_short}` 등 | worklog-start, worklog-amend, offload-to-branch |
-| `develop_sync` | `git fetch origin` | worktree 생성 전 develop 동기화 명령 | worklog-start |
+| `develop_sync` | `git fetch upstream` | worktree 생성 전 develop 동기화 명령 | worklog-start |
 
 ## Worktree
 

@@ -9,13 +9,13 @@ allowed-tools: Bash(cat:*), Bash(test:*), Bash(ls:*), Bash(date:*), Bash(grep:*)
 
 ## 프로젝트 설정
 
-이 스킬은 프로젝트 설정 파일(`rules/project-params.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
+이 스킬은 프로젝트 설정 파일(`rules/project-params.local.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용:
 
 | 설정 | 기본값 | 용도 |
 |------|--------|------|
 | `worktree_policy` | `optional` | `always`=항상 생성, `optional`=사용자에게 물음, `never`=생성 안함 |
 | `fork_workflow` | `false` | true면 origin=fork, upstream=org |
-| `develop_sync` | `git fetch origin` | worktree 전 develop 동기화 |
+| `develop_sync` | `git fetch upstream` | worktree 전 develop 동기화 |
 | `dependency_install` | (없음) | worktree 후 의존성 설치 명령 |
 | `branch_pattern` | `feature/{task_name}` | 브랜치 이름 패턴 |
 | `jira_pattern` | `[A-Z]+-\d+` | Jira 이슈 키 패턴 |
@@ -118,7 +118,7 @@ d. jira_url: 프로젝트 설정에 `jira_base_url`이 설정된 경우 사용, 
 **`skip_branch`가 true인 경우:**
 - 브랜치/worktree 생성을 완전히 건너뛰고 현재 브랜치 사용
 
-rules/project-params.md에서 **`worktree_policy` 결정** (기본: `optional`):
+rules/project-params.local.md에서 **`worktree_policy` 결정** (기본: `optional`):
 
 **`worktree_policy` = `optional`인 경우:**
 ```
@@ -139,7 +139,7 @@ AskUserQuestion:
 a. 프로젝트 설정에 `develop_sync`가 설정된 경우 해당 명령으로 develop 브랜치 동기화, 없으면:
    ```bash
    # fork_workflow=true → git fetch upstream && git fetch origin
-   # fork_workflow=false (또는 미설정) → git fetch origin
+   # fork_workflow=false (또는 미설정) → git fetch upstream
    ```
 b. worktree 생성:
    `_shared/create-worktree.md`가 존재하는 경우:

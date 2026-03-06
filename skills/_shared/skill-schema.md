@@ -232,7 +232,6 @@ Task(subagent_type="oh-my-claudecode:architect", model="opus", prompt="...")
 | `create-pr.md` | Pull Request 생성 |
 | `code-review-gate.md` | 코드리뷰 gating |
 | `lint-format.md` | 린트 및 포맷 |
-| `exclude-local-only-commits.md` | [LOCAL-ONLY] 커밋 제외 |
 | `cleanup-worktree.md` | 워크트리 정리 |
 | `resolve-worklog-target.md` | 워크로그 타겟 결정 |
 | `resolve-base-branch.md` | base branch 결정 |

@@ -9,7 +9,7 @@
 
 ## 절차
 
-1. `rules/project-params.md`에서 `completion_promise` 사용 (기본값: `**WORKLOG_TASK_COMPLETE**`)
+1. `rules/project-params.local.md`에서 `completion_promise` 사용 (기본값: `**WORKLOG_TASK_COMPLETE**`)
 2. `state_write(mode="ralph")`:
    ```json
    { "active": true, "iteration": 1, "max_iterations": 100, "completion_promise": "{COMPLETION_PROMISE}", "worklog_path": "{WORKLOG_DIR}", "linked_ultrawork": true }

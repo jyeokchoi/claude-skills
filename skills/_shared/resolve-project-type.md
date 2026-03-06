@@ -10,7 +10,7 @@
 
 ### 독립 실행 (ORCHESTRATED=false)인 경우
 
-1. `rules/project-params.md`에서 `project_type` 확인
+1. `rules/project-params.local.md`에서 `project_type` 확인
 2. 설정되지 않은 경우 자동 감지:
    - package.json에 `react`, `vue`, `svelte`, `next`, `nuxt`, `vite` 포함 → `frontend`
    - package.json + 서버 프레임워크(`express`, `fastify`, `koa`) + 프론트엔드 프레임워크 동시 존재 → `fullstack`

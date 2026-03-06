@@ -90,7 +90,7 @@ frontmatter (phase, jira, branch, ...)
 업데이트 전 현재 상태를 수집한다:
 
 ```bash
-TIMESTAMP=$(TZ=${timezone:-UTC} date "+%Y-%m-%d %H:%M")  # timezone은 rules/project-params.md 참조, 미설정 시 UTC
+TIMESTAMP=$(TZ=${timezone:-UTC} date "+%Y-%m-%d %H:%M")  # timezone은 rules/project-params.local.md 참조, 미설정 시 UTC
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 GIT_STATUS=$(git status -sb)
 GIT_DIFF_STAT=$(git diff --stat)

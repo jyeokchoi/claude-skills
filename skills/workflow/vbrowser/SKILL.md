@@ -6,7 +6,7 @@ argument-hint: 'Usage: /vbrowser [worklog-folder-or-url]'
 
 ## 프로젝트 설정
 
-이 스킬은 프로젝트 설정 파일(`rules/project-params.md`)을 참조한다 (auto-loaded).
+이 스킬은 프로젝트 설정 파일(`rules/project-params.local.md`)을 참조한다 (auto-loaded).
 
 ## 대상 결정
 

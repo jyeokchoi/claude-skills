@@ -45,7 +45,7 @@ MAIN_REPO=$(git worktree list | head -1 | awk '{print $1}')
 `_shared/resolve-base-branch.md`가 존재하는 경우:
 > **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
 
-없는 경우: 프로젝트 설정 파일(`rules/project-params.md`)의 `base_branch` → 자동 탐지 → 사용자 질문
+없는 경우: 프로젝트 설정 파일(`rules/project-params.local.md`)의 `base_branch` → 자동 탐지 → 사용자 질문
 
 변경 파일 수집:
 ```bash
@@ -114,19 +114,7 @@ fi
 - 플래그 없음: 사용자에게 "PR을 생성하시겠습니까?" 확인
 - 아니오: Step 7로 건너뜀
 
-**a. [LOCAL-ONLY] 커밋 제외 (MANDATORY - push 전에 반드시 실행):**
-
-프로젝트에 `_shared/exclude-local-only-commits.md`가 있는 경우:
-> **Shared**: `_shared/exclude-local-only-commits.md` 절차를 따른다.
-
-없는 경우:
-```bash
-# [LOCAL-ONLY] 커밋이 있으면 경고 후 사용자 확인
-git log --grep='\[LOCAL-ONLY\]' --oneline
-```
-[LOCAL-ONLY] 커밋이 발견되면 사용자에게 알리고 처리 방법을 확인한다.
-
-**b. PR 생성:**
+**a. PR 생성:**
 
 프로젝트에 `_shared/create-pr.md`가 있는 경우:
 > **Shared**: `_shared/create-pr.md` 절차를 따른다.

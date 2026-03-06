@@ -12,22 +12,22 @@ allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*), Bash(gi
 ## 핵심 설계 원칙
 
 - **기본적으로 비파괴**: 패치를 생성하여 새 브랜치에 적용한다. 원본 브랜치의 변경사항은 적용 성공 후에만 되돌린다.
-- **공유 절차 재사용**: Jira 이슈 생성, worktree 생성, [LOCAL-ONLY] 제외 등.
+- **공유 절차 재사용**: Jira 이슈 생성, worktree 생성 등.
 - **빠른 경로**: worklog 생성 생략 (멀티 세션 작업이 아닌 빠른 오프로드).
 - **Jira API 마크다운**: `\n` 리터럴 문자열 사용 금지 (포맷 깨짐). 실제 줄바꿈 또는 한 줄로 작성.
 
 ## 프로젝트 설정
 
-스킬 시작 시 프로젝트 설정 파일(`rules/project-params.md`)을 읽어 다음 설정을 가져온다:
+스킬 시작 시 프로젝트 설정 파일(`rules/project-params.local.md`)을 읽어 다음 설정을 가져온다:
 
 | 설정 | 기본값 | 설명 |
 |------|--------|------|
 | `base_branch` | auto-detect (`gh repo view --json defaultBranchRef`) | diff/worktree 기준 브랜치 |
-| `fork_workflow` | false | true면 `upstream` remote, false면 `origin` remote 사용 |
+| `fork_workflow` | false | true면 origin=fork, upstream=org repo 구조 |
 | `jira_pattern` | 없음 | 있으면 Jira 연동 활성화 (예: `VREW-\d+`) |
 | `branch_pattern` | `fix/{issue_key}` 또는 `fix/{kebab-case-brief}` | 브랜치 이름 패턴 |
 
-`rules/project-params.md`가 없으면 위 기본값으로 동작한다.
+`rules/project-params.local.md`가 없으면 위 기본값으로 동작한다.
 
 ## 입력
 
@@ -56,16 +56,16 @@ CURRENT_BRANCH=$(git branch --show-current)
 
 **제공되지 않은 경우:**
 
-a. `rules/project-params.md`에서 베이스 ref를 결정하거나, 사용자에게 질문하고 기억한다:
+a. `rules/project-params.local.md`에서 베이스 ref를 결정하거나, 사용자에게 질문하고 기억한다:
 ```bash
-# 1. rules/project-params.md에서 base_branch 읽기 (e.g., "upstream/develop")
+# 1. rules/project-params.local.md에서 base_branch 읽기 (e.g., "upstream/develop")
 # 2. base_branch에 /가 포함되면 이미 remote-qualified → 그대로 사용
 #    (e.g., "upstream/develop" → BASE_REF="upstream/develop", REMOTE="upstream")
 # 3. base_branch가 bare name이면 (e.g., "develop"):
 #    fork_workflow=true → REMOTE="upstream", BASE_REF="upstream/develop"
-#    fork_workflow=false → REMOTE="origin", BASE_REF="origin/develop"
-# 4. rules/project-params.md가 없으면 사용자에게 질문하고 project_memory에 기록:
-#    "base branch를 알려주세요 (예: upstream/develop, origin/main)"
+#    fork_workflow=false → REMOTE="upstream", BASE_REF="upstream/develop"
+# 4. rules/project-params.local.md가 없으면 사용자에게 질문하고 project_memory에 기록:
+#    "base branch를 알려주세요 (예: upstream/develop, upstream/main)"
 #    → project_memory_add_note("base_branch: {user_answer}")
 BASE_REF=<resolved>
 REMOTE=<extracted from BASE_REF>
@@ -95,7 +95,7 @@ git diff $MERGE_BASE..HEAD -- {selected_files} > /tmp/offload.patch
 
 ### 4. Jira 이슈 생성 (`--no-jira`가 아닌 경우)
 
-**`jira_pattern`이 `rules/project-params.md`에 있는 경우에만 실행한다. 없으면 이 단계를 건너뛴다.**
+**`jira_pattern`이 `rules/project-params.local.md`에 있는 경우에만 실행한다. 없으면 이 단계를 건너뛴다.**
 
 > **Shared**: `_shared/create-jira-issue.md` 절차를 따른다.
 > - 경로 우선순위: 프로젝트 `.claude/skills/_shared/create-jira-issue.md` → `~/.claude/skills/_shared/create-jira-issue.md`
@@ -107,7 +107,7 @@ git diff $MERGE_BASE..HEAD -- {selected_files} > /tmp/offload.patch
 ### 5. 브랜치 및 worktree 생성
 
 a. 브랜치 이름 결정:
-- `rules/project-params.md`에 `branch_pattern`이 있으면 해당 패턴 사용
+- `rules/project-params.local.md`에 `branch_pattern`이 있으면 해당 패턴 사용
 - 기본값:
   - Jira 있음: `fix/{issue_key}` (예: `fix/PROJ-1234`)
   - Jira 없음: `fix/{kebab-case-brief}` (예: `fix/audio-duplicate-conversion`)
@@ -191,12 +191,7 @@ git commit -m "refactor: extract {brief} to separate branch ({issue_key_if_exist
 
 ### 11. 푸시 및 PR 생성
 
-**a. [LOCAL-ONLY] 커밋 제외 (필수):**
-
-> **Shared**: `_shared/exclude-local-only-commits.md` 절차를 따른다.
-> - 경로 우선순위: 프로젝트 `.claude/skills/_shared/exclude-local-only-commits.md` → `~/.claude/skills/_shared/exclude-local-only-commits.md`
-
-**b. PR 생성:**
+**a. PR 생성:**
 
 > **Shared**: `_shared/create-pr.md` 절차를 따른다.
 > - 경로 우선순위: 프로젝트 `.claude/skills/_shared/create-pr.md` → `~/.claude/skills/_shared/create-pr.md`

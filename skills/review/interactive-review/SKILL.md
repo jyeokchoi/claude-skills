@@ -14,7 +14,7 @@ argument-hint: 'Usage: /interactive-review [--reset] [base-branch]'
 
 - 원본 인자: $ARGUMENTS
 - `--reset`: 기존 state 파일을 삭제하고 처음부터 재시작
-- `base-branch`: diff 기준 브랜치 (생략 시 `rules/project-params.md` → 자동 탐지)
+- `base-branch`: diff 기준 브랜치 (생략 시 `rules/project-params.local.md` → 자동 탐지)
 
 ## State 파일
 
@@ -63,7 +63,7 @@ Files: {checked}/{total}
 
 base-branch 결정 순서:
 1. 인자에 `base-branch`가 있으면 사용
-2. `rules/project-params.md`에 `base_branch`가 있으면 사용
+2. `rules/project-params.local.md`에 `base_branch`가 있으면 사용
 3. `gh repo view --json defaultBranchRef`로 자동 탐지
 4. 실패 시 사용자에게 질문
 

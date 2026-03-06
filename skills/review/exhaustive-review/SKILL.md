@@ -133,12 +133,12 @@ Analyze ONLY the code context sent to you by the moderator.
 
 <Project_Settings>
 
-이 스킬은 다음 프로젝트 설정을 참조한다 (`rules/project-params.md`):
+이 스킬은 다음 프로젝트 설정을 참조한다 (`rules/project-params.local.md`):
 
 | 설정 | 용도 |
 |------|------|
 | `base_branch` | 로컬 변경 리뷰 시 diff 기준 (e.g., `upstream/develop`) |
-| `fork_workflow` | remote 결정 (`true` → upstream, `false` → origin) |
+| `fork_workflow` | `true` → origin=fork, upstream=org repo 구조 |
 
 설정이 없으면: `gh repo view --json defaultBranchRef`로 자동 탐지 → 실패 시 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`
 
@@ -150,7 +150,7 @@ Analyze ONLY the code context sent to you by the moderator.
 
 1. 리뷰 범위 결정:
    - PR: `gh pr view <number>`로 메타데이터 + `gh pr diff <number>`로 diff
-   - 로컬 변경사항: `rules/project-params.md`에서 `base_branch` 확인 (있으면), 없으면 `gh repo view --json defaultBranchRef`로 자동 탐지, 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`. 그 다음: `git diff {base_branch}...HEAD`
+   - 로컬 변경사항: `rules/project-params.local.md`에서 `base_branch` 확인 (있으면), 없으면 `gh repo view --json defaultBranchRef`로 자동 탐지, 없으면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`. 그 다음: `git diff {base_branch}...HEAD`
    - 특정 파일: 해당 파일 읽기
 2. `REVIEW_CONTEXT` 구성:
    - 변경사항 요약 (파일, 추가/삭제 줄 수)

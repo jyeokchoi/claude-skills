@@ -2,7 +2,7 @@
 
 ## 입력
 
-- `project_settings`: `rules/project-params.md`에서 로드된 프로젝트 설정 (auto-loaded)
+- `project_settings`: `rules/project-params.local.md`에서 로드된 프로젝트 설정 (auto-loaded)
 
 ## 절차
 

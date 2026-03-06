@@ -45,15 +45,15 @@ digraph explain_flow {
 
 ## 프로젝트 설정
 
-스킬 시작 시 프로젝트 설정 파일(`rules/project-params.md`)을 읽어 다음 설정을 가져온다:
+스킬 시작 시 프로젝트 설정 파일(`rules/project-params.local.md`)을 읽어 다음 설정을 가져온다:
 
 | 설정 | 기본값 | 용도 |
 |------|--------|------|
 | `base_branch` | (자동 탐지: `gh repo view --json defaultBranchRef`) | diff 기준 브랜치 |
-| `fork_workflow` | `false` | true면 `upstream` remote, false면 `origin` remote 사용 |
+| `fork_workflow` | `false` | true면 origin=fork, upstream=org repo 구조 |
 
 `base_branch` 결정 로직:
-1. `rules/project-params.md`에 `base_branch`가 있으면 사용 (e.g., `upstream/develop`)
+1. `rules/project-params.local.md`에 `base_branch`가 있으면 사용 (e.g., `upstream/develop`)
 2. 없으면 `gh repo view --json defaultBranchRef`로 자동 탐지
 3. 자동 탐지도 실패하면 사용자에게 질문 → `project_memory_add_note("base_branch: {answer}")`
 

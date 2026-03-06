@@ -11,12 +11,12 @@ allowed-tools: Bash(git diff:*), Bash(git merge-base:*), Bash(git rev-parse:*), 
 
 ## 프로젝트 설정
 
-이 스킬은 다음 프로젝트 설정을 참조한다 (`rules/project-params.md`):
+이 스킬은 다음 프로젝트 설정을 참조한다 (`rules/project-params.local.md`):
 
 | 설정 | 용도 |
 |------|------|
 | `base_branch` | diff 기준 브랜치 (e.g., `upstream/develop`) |
-| `fork_workflow` | remote 결정 (`true` → upstream, `false` → origin) |
+| `fork_workflow` | `true` → origin=fork, upstream=org repo 구조 |
 
 설정이 없으면: `_shared/resolve-base-branch.md`가 있으면 그 절차를 따른다.
 
@@ -51,7 +51,7 @@ allowed-tools: Bash(git diff:*), Bash(git merge-base:*), Bash(git rev-parse:*), 
 `_shared/resolve-base-branch.md`가 존재하는 경우:
 > **Shared**: `_shared/resolve-base-branch.md` 절차를 따른다.
 
-없는 경우: `project-params.md`의 `base_branch` → 자동 탐지 → 사용자 질문
+없는 경우: `project-params.local.md`의 `base_branch` → 자동 탐지 → 사용자 질문
 
 **b. 변경 파일 목록:**
 ```bash

@@ -27,7 +27,7 @@ which gemini 2>/dev/null && echo "GEMINI_AVAILABLE=true" || echo "GEMINI_AVAILAB
 
 ## 섹션 2: project_type × task_type → CLI 매핑 테이블
 
-`project_type`은 `rules/project-params.md` 또는 자동 감지 값을 사용한다.
+`project_type`은 `rules/project-params.local.md` 또는 자동 감지 값을 사용한다.
 
 | project_type | task_type | 선택 CLI | 조건 |
 |---|---|---|---|
@@ -39,7 +39,7 @@ which gemini 2>/dev/null && echo "GEMINI_AVAILABLE=true" || echo "GEMINI_AVAILAB
 
 ## 섹션 3: 타임아웃 정책
 
-- **기본 타임아웃:** 5분 (프로젝트별 `rules/project-params.md`의 `cli_timeout_minutes`로 조정 가능)
+- **기본 타임아웃:** 5분 (프로젝트별 `rules/project-params.local.md`의 `cli_timeout_minutes`로 조정 가능)
 - **타임아웃 발생 시:** 부분 결과 폐기 → claude Task() fallback으로 전환 (재시도 없음)
 - **타임아웃 감지:** `omc_run_team_wait` 반환값에서 `status=timeout` 또는 응답 없음으로 판단
 

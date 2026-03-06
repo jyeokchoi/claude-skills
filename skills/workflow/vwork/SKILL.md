@@ -7,7 +7,7 @@ argument-hint: 'Usage: /vwork [worklog-path | task-name | ISSUE-KEY] [brief]'
 
 ## 프로젝트 설정
 
-이 스킬은 프로젝트 설정 파일(`rules/project-params.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용.
+이 스킬은 프로젝트 설정 파일(`rules/project-params.local.md`)을 참조한다 (auto-loaded). 설정이 없으면 기본값 사용.
 
 워크로그 phase를 기반으로 전체 작업 라이프사이클을 관리하는 통합 오케스트레이터.
 
